@@ -20,8 +20,9 @@
     </div>
 
     <!-- Wallet Connection -->
-    <div class="wallet-section" style="margin-bottom: 10px;">
+    <div class="wallet-section" style="margin-bottom: 10px; display: flex; gap: 5px;">
        <button v-if="!isWalletConnected" @click="connectWallet" class="wallet-btn">Connect Wallet</button>
+       <button v-if="!isWalletConnected" @click="connectBase" class="wallet-btn base-btn">Connect Base</button>
        <div v-else class="wallet-info">Connected: {{ address.substring(0,6) }}...</div>
     </div>
 
@@ -75,6 +76,47 @@ const address = ref("0xUserAddressMock");
         }
       } else {
         status.value = "MetaMask not found!";
+      }
+    }
+
+    async function connectBase() {
+      if (!window.ethereum) return;
+      
+      try {
+        // 1. Connect
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        address.value = accounts[0];
+        isWalletConnected.value = true;
+
+        // 2. Switch to Base (Chain ID 8453 = 0x2105)
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x2105' }], 
+          });
+        } catch (switchError) {
+          // This error code indicates that the chain has not been added to MetaMask.
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: '0x2105',
+                  chainName: 'Base',
+                  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://mainnet.base.org'],
+                  blockExplorerUrls: ['https://basescan.org'],
+                },
+              ],
+            });
+          } else {
+            throw switchError;
+          }
+        }
+        status.value = "Connected to Base: " + address.value.substring(0,6) + "...";
+      } catch (error) {
+        console.error(error);
+        status.value = "Base Connection Failed";
       }
     }
 
@@ -212,5 +254,11 @@ button:disabled {
     margin-top: 10px;
     word-break: break-all;
     font-size: 0.8em;
+}
+.base-btn {
+    background: #0052FF; /* Coinbase Blue */
+}
+.base-btn:hover {
+    background: #0045d8;
 }
 </style>
