@@ -1,0 +1,46 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "backend/server.js",
+            "use": "@vercel/node"
+        },
+        {
+            "src": "package.json",
+            "use": "@vercel/static-build"
+        }
+    ],
+    "rewrites": [
+        {
+            "source": "/atomicMint(.*)",
+            "destination": "/backend/server.js"
+        },
+        {
+            "source": "/execute-agentic-purchase(.*)",
+            "destination": "/backend/server.js"
+        },
+        {
+            "source": "/analyze-scene(.*)",
+            "destination": "/backend/server.js"
+        },
+        {
+            "source": "/agent(.*)",
+            "destination": "/backend/server.js"
+        },
+        {
+            "source": "/amane-l0(.*)",
+            "destination": "/backend/server.js"
+        },
+        {
+            "source": "/f(.*)",
+            "destination": "/backend/server.js"
+        },
+        {
+            "source": "(.*)",
+            "destination": "/dist/index.html"
+        }
+    ],
+    "env": {
+        "NODE_ENV": "production"
+    }
+}
