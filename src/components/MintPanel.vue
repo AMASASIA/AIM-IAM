@@ -20,9 +20,10 @@
     </div>
 
     <!-- Wallet Connection -->
-    <div class="wallet-section" style="margin-bottom: 10px; display: flex; gap: 5px;">
+    <div class="wallet-section" style="margin-bottom: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
        <button v-if="!isWalletConnected" @click="connectWallet" class="wallet-btn">Connect Wallet</button>
-       <button v-if="!isWalletConnected" @click="connectBase" class="wallet-btn base-btn">Connect Base</button>
+       <button v-if="!isWalletConnected" @click="connectBase" class="wallet-btn base-btn">Base Mainnet</button>
+       <button v-if="!isWalletConnected" @click="connectBaseSepolia" class="wallet-btn testnet-btn">Base Sepolia</button>
        <div v-else class="wallet-info">Connected: {{ address.substring(0,6) }}...</div>
     </div>
 
@@ -120,8 +121,47 @@ const address = ref("0xUserAddressMock");
       }
     }
 
-// 1. Generate AI State & Metadata
-async function generateAI() {
+    async function connectBaseSepolia() {
+      if (!window.ethereum) return;
+      
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        address.value = accounts[0];
+        isWalletConnected.value = true;
+
+        // Base Sepolia (Chain ID 84532 = 0x14a34)
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x14a34' }], 
+          });
+        } catch (switchError) {
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: '0x14a34',
+                  chainName: 'Base Sepolia Testnet',
+                  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://sepolia.base.org'],
+                  blockExplorerUrls: ['https://sepolia.basescan.org'],
+                },
+              ],
+            });
+          } else {
+            throw switchError;
+          }
+        }
+        status.value = "Connected to Base Sepolia: " + address.value.substring(0,6) + "...";
+      } catch (error) {
+        console.error(error);
+        status.value = "Testnet Connection Failed";
+      }
+    }
+
+    // 1. Generate AI State & Metadata
+    async function generateAI() {
   loading.value = true;
   status.value = "Consulting AI...";
   
@@ -260,5 +300,11 @@ button:disabled {
 }
 .base-btn:hover {
     background: #0045d8;
+}
+.testnet-btn {
+    background: #8a2be2; /* Violet for Testnet */
+}
+.testnet-btn:hover {
+    background: #7a1fd2;
 }
 </style>
