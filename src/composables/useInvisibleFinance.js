@@ -14,15 +14,15 @@ export const useInvisibleFinance = () => {
             const osc = context.createOscillator();
             const gain = context.createGain();
 
-            // Clear, high-frequency "Rin" sound (E7 focus)
+            // E7 (2637.02Hz) - Exponential Decay used for "fading silence"
             osc.frequency.setValueAtTime(2637.02, context.currentTime);
             gain.gain.setValueAtTime(0, context.currentTime);
-            gain.gain.linearRampToValueAtTime(0.1, context.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0.12, context.currentTime + 0.05); // slightly louder
             gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 2.5);
 
             osc.connect(gain).connect(context.destination);
             osc.start();
-            osc.stop(context.currentTime + 2.5);
+            osc.stop(context.currentTime + 2.8);
         } catch (e) {
             console.error("Audio engine failed to initialize:", e);
         }
@@ -48,11 +48,18 @@ export const useInvisibleFinance = () => {
     // 3. 不可視の金融プロトコル (SBT/決済)
     const executeInvisibleFinance = async (intent) => {
         console.log(`[Life Wave] Invisible Finance Protocol Executing: ${intent}`);
-        // Mock simulation of blockchain consensus
+
+        // Advocacy Check: In a real scenario, we check entropy.
+        // Simulation: We assume entropy is low (calm) and proceed.
+
         return new Promise((resolve) => {
             setTimeout(() => {
-                resolve({ status: 'success', txId: '0x' + Math.random().toString(16).slice(2) + 'soul' });
-            }, 1000);
+                const sbtId = '7712'; // Fixed for demo resonance
+                const txHash = '0x' + Math.random().toString(16).slice(2) + 'soul';
+
+                console.log(`[Life Wave 🧚] 空間同期完了。SBT #${sbtId} 刻印。`);
+                resolve({ status: 'success', txId: txHash, sbtId });
+            }, 1500); // 1.5s transaction time
         });
     };
 

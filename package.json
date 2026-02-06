@@ -12,6 +12,8 @@
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@waku/sdk": "^0.0.26",
+    "@web3modal/ethers": "^5.1.11",
+    "ethers": "^6.16.0",
     "firebase": "^11.3.0",
     "lucide-vue-next": "^0.475.0",
     "peerjs": "^1.5.5",

@@ -21,10 +21,17 @@
 
     <!-- Wallet Connection -->
     <div class="wallet-section" style="margin-bottom: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
-       <button v-if="!isWalletConnected" @click="connectWallet" class="wallet-btn">Connect Wallet</button>
-       <button v-if="!isWalletConnected" @click="connectBase" class="wallet-btn base-btn">Base Mainnet</button>
-       <button v-if="!isWalletConnected" @click="connectBaseSepolia" class="wallet-btn testnet-btn">Base Sepolia</button>
-       <div v-else class="wallet-info">Connected: {{ address.substring(0,6) }}...</div>
+       <!-- Web3Modal Button (Custom Element or Trigger) -->
+       <button @click="openWeb3Modal" class="wallet-btn" style="background: linear-gradient(90deg, #00C6FF, #0072FF);">
+          Connect (All Wallets)
+       </button>
+       
+       <!-- Direct Shortcuts (Optional) -->
+       <!-- <button v-if="!isWalletConnected" @click="connectBase" class="wallet-btn base-btn">Base Mainnet</button> -->
+       
+       <div v-if="address && address !== '0xUserAddressMock'" class="wallet-info">
+           Connected: {{ address.substring(0,6) }}...
+       </div>
     </div>
 
     <!-- Metadata Preview -->
@@ -63,21 +70,38 @@ const glowClass = computed(() => AntigravityEngine.glowState || 'stable');
 
 const address = ref("0xUserAddressMock");
     const isWalletConnected = ref(false);
-
-    async function connectWallet() {
-      if (window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          address.value = accounts[0];
-          isWalletConnected.value = true;
-          status.value = "Wallet Connected: " + address.value.substring(0,6) + "...";
-        } catch (error) {
-          console.error(error);
-          status.value = "Wallet Connection Failed";
+    
+    // Sync with Web3Modal
+    import { useWeb3ModalAccount } from '@web3modal/ethers/vue'
+    const { address: modalAddress, isConnected } = useWeb3ModalAccount()
+    
+    // Watch for changes (simple sync)
+    import { watch } from 'vue';
+    watch(modalAddress, (newVal) => {
+        if(newVal) {
+            address.value = newVal;
+            isWalletConnected.value = true;
+            status.value = "Wallet Connected via AppKit";
         }
-      } else {
-        status.value = "MetaMask not found!";
-      }
+    });
+
+    import { modal } from '../lib/web3modal.js';
+    import { useWeb3Modal } from '@web3modal/ethers/vue';
+
+    // Hook to force re-render or check state if needed, though modal handles itself mostly
+    const { open } = useWeb3Modal()
+
+    const openWeb3Modal = () => {
+        open();
+    };
+
+    // Keep legacy direct injected logic as fallback or specific use case if desired
+    // But primarily use the modal for broad compatibility (WalletConnect + Injected)
+    async function connectWallet() {
+       // Using the new Modal instead of manual injected logic
+       await open();
+       // Note: To get the address reactively from the modal, we'd use the useWeb3ModalAccount hook
+       // For this mix, let's just trigger the UI.
     }
 
     async function connectBase() {

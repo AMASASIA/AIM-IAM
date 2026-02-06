@@ -22,6 +22,7 @@ import peerService from '../services/peerService.js';
 import VideoOverlay from '../components/VideoOverlay.vue';
 import { useAntigravityRecorder } from '../composables/useAntigravityRecorder';
 import SystemLogs from '../components/SystemLogs.vue';
+import { labelingCaller } from '../services/labelingCaller';
 
 // State
 const user = ref(null);
@@ -147,30 +148,28 @@ onMounted(() => {
           case 'CONNECT_CHAT':
             // Find contact in address book
             if (intent.target_person) {
-              const contact = contactBook.findContact(intent.target_person);
-              if (contact && contact.peerId) {
-                // Auto-connect to peer via Labeling Caller (Visible AI Liaison)
-                console.log(`Auto-connecting to ${contact.nickname} (${contact.peerId})`);
-                
-                // Set active call data to trigger the sanctuary popup
-                activeCall.value = {
-                  targetName: contact.nickname,
-                  intentType: intent.intent === 'CONNECT_VIDEO' ? 'Video Bridge' : 'Resonance Chat',
-                  contact: contact
-                };
-                showFinancePopup.value = true;
-                
-                // Log to notebook
-                const newEntry = {
-                  id: Date.now().toString(),
-                  type: 'system',
-                  title: `Connection Request: ${contact.nickname}`,
-                  content: `Initiated ${intent.intent === 'CONNECT_VIDEO' ? 'video' : 'chat'} connection via voice command.\nTarget: @${contact.threadsId || contact.instagramId}`,
-                  timestamp: new Date(),
-                };
-                notebookEntries.value.unshift(newEntry);
-              } else {
-                alert(`❌ Contact "${intent.target_person}" not found.\n\nPlease add them to your contact book first.`);
+              try {
+                  const result = await labelingCaller.execute({ nickname: intent.target_person });
+                  
+                  // Set active call data to trigger the sanctuary popup
+                  activeCall.value = {
+                    targetName: result.contact.nickname,
+                    intentType: intent.intent === 'CONNECT_VIDEO' ? 'Video Bridge' : 'Resonance Chat',
+                    contact: result.contact
+                  };
+                  showFinancePopup.value = true;
+                  
+                  // Log to notebook
+                  const newEntry = {
+                    id: Date.now().toString(),
+                    type: 'system',
+                    title: `Resonance Call: ${result.contact.nickname}`,
+                    content: `Initiated ${intent.intent === 'CONNECT_VIDEO' ? 'video' : 'chat'} resonance via labeling caller.\nTarget: @${result.contact.threadsId || result.contact.instagramId}`,
+                    timestamp: new Date(),
+                  };
+                  notebookEntries.value.unshift(newEntry);
+              } catch (err) {
+                  alert(err.message);
               }
             } else {
               alert('🤔 Could not identify who you want to connect with.\nPlease say their name clearly.');

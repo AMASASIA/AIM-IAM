@@ -5,11 +5,11 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   server: {
-    host: '0.0.0.0',
-    allowedHosts: ['kind-things-walk.loca.lt'],
-    hmr: {
-      clientPort: 443
-    },
+    // host: '0.0.0.0',
+    // allowedHosts: ['kind-things-walk.loca.lt'],
+    // hmr: {
+    //   clientPort: 443
+    // },
     proxy: {
       '/agent': 'http://localhost:3000',
       '/analyze-scene': 'http://localhost:3000',
