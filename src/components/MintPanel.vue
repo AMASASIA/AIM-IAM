@@ -19,6 +19,12 @@
       </button>
     </div>
 
+    <!-- Wallet Connection -->
+    <div class="wallet-section" style="margin-bottom: 10px;">
+       <button v-if="!isWalletConnected" @click="connectWallet" class="wallet-btn">Connect Wallet</button>
+       <div v-else class="wallet-info">Connected: {{ address.substring(0,6) }}...</div>
+    </div>
+
     <!-- Metadata Preview -->
     <div v-if="aiResult" class="metadata-preview">
        <pre>{{ JSON.stringify(aiResult, null, 2) }}</pre>
@@ -42,7 +48,7 @@ import { ref, computed, onMounted } from 'vue';
 import { askGemini } from "../engine/ai.js";
 import { AntigravityEngine } from "../engine/antigravity-engine.js";
 
-const apiKey = "YOUR_GEMINI_KEY"; // Real implementation would use env or user input
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const aiPrompt = ref("Energetic neon cyber future");
 const loading = ref(false);
 const minting = ref(false);
@@ -53,7 +59,24 @@ const engineEnergy = ref(0.5);
 
 const glowClass = computed(() => AntigravityEngine.glowState || 'stable');
 
-const address = "0xUserAddressMock"; // In real app, get from wallet connection
+const address = ref("0xUserAddressMock");
+    const isWalletConnected = ref(false);
+
+    async function connectWallet() {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          address.value = accounts[0];
+          isWalletConnected.value = true;
+          status.value = "Wallet Connected: " + address.value.substring(0,6) + "...";
+        } catch (error) {
+          console.error(error);
+          status.value = "Wallet Connection Failed";
+        }
+      } else {
+        status.value = "MetaMask not found!";
+      }
+    }
 
 // 1. Generate AI State & Metadata
 async function generateAI() {
@@ -98,7 +121,7 @@ async function atomicMint() {
         const metadata = aiResult.value.metadata;
         const aiLog = aiResult.value.engine;
         
-        // This should point to your Node.js Backend URL (e.g. localhost:3000)
+        // Auto-detect backend URL (relative path works for Vercel/same-domain)
         const API_URL = ""; 
         
         const res = await fetch(`${API_URL}/atomicMint`, {
