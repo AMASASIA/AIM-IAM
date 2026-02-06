@@ -4,29 +4,29 @@ const INTENT_ROUTER_INSTRUCTION = `You are an AI Intent Router for the Amane Pro
 Analyze user input and determine their intent.
 
 POSSIBLE INTENTS:
-1. "CONNECT_VIDEO" - User wants to start a video chat with someone (e.g., "田中さんとビデオチャット", "connect to John")
-2. "CONNECT_CHAT" - User wants to start a text chat (e.g., "山田さんにメッセージ")
-3. "ADD_CONTACT" - User wants to add a contact (e.g., "田中さんを連絡先に追加")
-4. "MESSAGE" - Normal message to send to current chat
-5. "NOTEBOOK_MEMO" - User wants to save a memo (e.g., "メモ: ...", "remember that...")
+1. "CONNECT_VIDEO" - User wants to start a video chat with someone.
+2. "CONNECT_CHAT" - User wants to start a text chat.
+3. "ADD_CONTACT" - User wants to add a contact.
+4. "MESSAGE" - Normal message to send to the current chat context.
+5. "NOTEBOOK_MEMO" - General memo or idea.
+6. "SCHEDULE_EVENT" - User mentions a date, time, meeting, or schedule (e.g. "Meeting with Bob tomorrow at 2pm", "Schedule lunch next Friday").
+7. "TODO_TASK" - User mentions a task, to-do, shopping list (e.g. "Buy milk", "Task: Finish report").
 
 OUTPUT FORMAT (JSON only):
 {
-  "intent": "CONNECT_VIDEO" | "CONNECT_CHAT" | "ADD_CONTACT" | "MESSAGE" | "NOTEBOOK_MEMO",
-  "target_person": "nickname or name (if applicable)",
-  "message": "the actual message content",
+  "intent": "CONNECT_VIDEO" | "CONNECT_CHAT" | "ADD_CONTACT" | "MESSAGE" | "NOTEBOOK_MEMO" | "SCHEDULE_EVENT" | "TODO_TASK",
+  "target_person": "nickname or name if applicable",
+  "message": "the core message content",
+  "details": "For schedule/todo: extracted date, time, location, or list items. Null otherwise.",
   "confidence": 0.0-1.0
 }
 
 EXAMPLES:
-Input: "田中さんとビデオチャットしたい"
-Output: {"intent": "CONNECT_VIDEO", "target_person": "田中", "message": "", "confidence": 0.95}
+Input: "Meeting with Tanaka tomorrow at 10 AM"
+Output: {"intent": "SCHEDULE_EVENT", "target_person": "Tanaka", "message": "Meeting with Tanaka", "details": "Tomorrow 10 AM", "confidence": 0.95}
 
-Input: "Hello, how are you?"
-Output: {"intent": "MESSAGE", "target_person": null, "message": "Hello, how are you?", "confidence": 1.0}
-
-Input: "山田さんを連絡先に追加、Threads IDは yamada123"
-Output: {"intent": "ADD_CONTACT", "target_person": "山田", "message": "Threads IDは yamada123", "confidence": 0.9}`;
+Input: "Buy milk and eggs"
+Output: {"intent": "TODO_TASK", "target_person": null, "message": "Buy milk and eggs", "details": "milk, eggs", "confidence": 0.9}`;
 
 const KERNEL_ARCHITECT_INSTRUCTION = `You are the INTENT ARCHITECT of the Amane Protocol.
 Operating on Amane protocol and SSM (State Space Model) Logic.
@@ -225,9 +225,14 @@ export const analyzeImage = async (base64Data, mimeType) => {
     };
 
     return withRetry(async () => {
-        const result = await model.generateContent([imagePart, textPart]);
-        const response = await result.response;
-        return response.text() || "Vision analysis complete.";
+        try {
+            const result = await model.generateContent([imagePart, textPart]);
+            const response = await result.response;
+            return response.text() || "Vision analysis complete.";
+        } catch (e) {
+            console.error("Gemini Vision Error:", e);
+            return "Visual Analysis halted. (API Key or Quota issue). Preserving raw visual data in Notebook.";
+        }
     });
 };
 

@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue';
 import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen } from 'lucide-vue-next';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import OKECertificationCard from './OKECertificationCard.vue';
@@ -10,6 +11,19 @@ const props = defineProps({
     default: () => []
   }
 });
+const emit = defineEmits(['save-diary']);
+const diaryInput = ref('');
+const showDiaryInput = ref(false);
+
+const toggleDiaryInput = () => {
+  showDiaryInput.value = !showDiaryInput.value;
+};
+
+const saveDiaryEntry = () => {
+    if (!diaryInput.value.trim()) return;
+    emit('save-diary', diaryInput.value);
+    diaryInput.value = '';
+};
 </script>
 
 <template>
@@ -18,14 +32,43 @@ const props = defineProps({
       
       <!-- HEADER SECTION -->
       <header class="text-center space-y-6 md:space-y-12 mt-32 md:mt-48">
-        <div class="flex justify-center">
-          <div class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl shadow-teal-100/20">
-            <Feather :size="32" />
-          </div>
+        <div class="flex flex-col items-center justify-center">
+          <button @click="toggleDiaryInput" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl shadow-teal-100/20 hover:scale-110 hover:shadow-teal-500/30 transition-all cursor-pointer group active:scale-95">
+            <Feather :size="32" class="group-hover:rotate-12 transition-transform duration-500" />
+          </button>
+          <p class="mt-6 text-[9px] font-bold uppercase tracking-[0.3em] text-slate-400 hover:text-teal-500 cursor-pointer transition-colors" @click="toggleDiaryInput">
+            Tap Feather to Write
+          </p>
         </div>
         <h1 class="font-serif-luxury text-7xl md:text-[10rem] lg:text-[12rem] text-slate-900 leading-[0.8] tracking-tighter font-bold italic select-none">Personal Notebook</h1>
         <p class="text-[10px] md:text-[14px] font-black uppercase tracking-[0.5em] md:tracking-[1em] text-slate-300">Identity x Semantic Resonance | Amas Core OS</p>
       </header>
+
+      <!-- DIARY INPUT SECTION -->
+      <transition enter-active-class="transition-all duration-500 ease-out" enter-from-class="opacity-0 -translate-y-4" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-300 ease-in" leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 -translate-y-4">
+        <section v-if="showDiaryInput" class="space-y-6">
+            <div class="bg-white/80 p-8 rounded-3xl shadow-sm border border-slate-100 backdrop-blur-md">
+                <h3 class="text-xl font-serif-luxury italic text-slate-900 mb-4 flex items-center gap-2">
+                    <Sparkles :size="18" class="text-teal-500" />
+                    <span>Write in your Diary</span>
+                </h3>
+                <textarea
+                    v-model="diaryInput"
+                    placeholder="What is on your mind today?"
+                    class="w-full h-32 p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 text-slate-700 font-serif resize-none transition-all"
+                ></textarea>
+                <div class="flex justify-end mt-4">
+                    <button 
+                    @click="saveDiaryEntry" 
+                    :disabled="!diaryInput.trim()"
+                    class="px-6 py-2 bg-slate-900 text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                    >
+                    Save Entry
+                    </button>
+                </div>
+            </div>
+        </section>
+      </transition>
 
       <!-- VISUAL DIARY LOG -->
       <section v-if="entries.length > 0" class="space-y-12">

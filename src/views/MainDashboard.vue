@@ -120,22 +120,13 @@ onMounted(() => {
           }
       }
   };
+});
 
-  // Initialize speech recognition
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SpeechRecognition) {
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'ja-JP';
 
-    recognition.onstart = () => {
-      isListening.value = true;
-    };
-
-    recognition.onresult = async (event) => {
-      const transcript = event.results[0][0].transcript;
-      console.log('Voice input:', transcript);
+  // Unified command processor (Voice or Text)
+  const handleVoiceTranscription = async (transcript) => {
+      console.log('Processing Command:', transcript);
+      notify('Amane Core', 'Processing thought sequence...', 'info');
       
       try {
         // Step 1: Analyze intent using AI
@@ -187,9 +178,36 @@ onMounted(() => {
             await handleSendMessage(intent.message || transcript);
             break;
 
+          case 'SCHEDULE_EVENT':
+            // Schedule handling
+            const scheduleEntry = {
+              id: Date.now().toString(),
+              type: 'calendar',
+              title: `📅 ${intent.message}`,
+              content: `**Google Calendar Sync Active**\n\nDetails: ${intent.details || 'Detected in context'}\n\n[Open Google Calendar](https://calendar.google.com/calendar/u/0/r/eventedit?text=${encodeURIComponent(intent.message)}&details=${encodeURIComponent(intent.details || '')})`,
+              timestamp: new Date(),
+            };
+            notebookEntries.value.unshift(scheduleEntry);
+            notify('Google Calendar', `Event scheduled: ${intent.message}`, 'success');
+            break;
+
+          case 'TODO_TASK':
+            // Task/To-Do handling
+            const taskEntry = {
+              id: Date.now().toString(),
+              type: 'todo',
+              title: `✅ Task: ${intent.message}`,
+              content: `- [ ] ${intent.details || intent.message}\n\n*Added via Voice Command*`,
+              timestamp: new Date(),
+            };
+            notebookEntries.value.unshift(taskEntry);
+            notify('Tasks', `Added to list: ${intent.message}`, 'success');
+            break;
+
           case 'NOTEBOOK_MEMO':
           default:
             // Save as notebook entry
+            activeView.value = 'notebook'; // Auto-switch to notebook to show result
             const refinedNote = await processVoiceNote(transcript);
             const newEntry = {
               id: Date.now().toString(),
@@ -202,8 +220,26 @@ onMounted(() => {
             break;
         }
       } catch (e) {
-        console.error('Voice processing error:', e);
+        console.error('Command processing error:', e);
       }
+    };
+
+  // Initialize speech recognition
+  onMounted(async () => {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'ja-JP';
+
+    recognition.onstart = () => {
+      isListening.value = true;
+    };
+
+    recognition.onresult = async (event) => {
+      const transcript = event.results[0][0].transcript;
+      await handleVoiceTranscription(transcript);
     };
 
     recognition.onend = () => {
@@ -212,6 +248,9 @@ onMounted(() => {
 
     recognitionRef.value = recognition;
   }
+  
+  // existing onMounted logic...
+  const myPeerId = await peerService.initialize();
 });
 
 // Save messages and notebook when they change
@@ -375,6 +414,18 @@ const handleImport = async (file) => {
   }
 };
 
+const handleManualDiaryEntry = (content) => {
+  const newEntry = {
+    id: Date.now().toString(),
+    type: 'diary',
+    title: `Diary Entry: ${new Date().toLocaleTimeString()}`,
+    content: content,
+    timestamp: new Date()
+  };
+  notebookEntries.value.unshift(newEntry);
+  notify('Notebook', 'Diary entry saved.', 'success');
+};
+
 const handleContactConnect = ({ contact, type }) => {
   activeCall.value = {
     targetName: contact.nickname,
@@ -411,19 +462,30 @@ const startP2PMedia = async (peerId, isIncoming = false, incomingCall = null) =>
 };
 
 const handleCallAgreement = async (callData) => {
-  console.log("[AMAS_GENESIS_REVIVAL] Agreement reached. Finalizing Directive...", callData);
+  // console.log("[AMAS_GENESIS_REVIVAL] Agreement reached. Finalizing Directive...", callData);
   
   try {
     // Phase 4: Invisible Finance Execution
     const result = await liaisonService.value.completeDirective(callData);
-    console.log("Directive Finalized:", result);
+    // console.log("Directive Finalized:", result);
 
     // Phase 5: Start Actual P2P Connection
-    if (callData.intentType.includes('Video')) {
-      await startP2PMedia(callData.contact.peerId);
+    if (callData.contact && callData.contact.peerId) {
+        if (callData.intentType.includes('Video')) {
+            await startP2PMedia(callData.contact.peerId);
+        } else {
+            peerService.connectToPeer(callData.contact.peerId);
+            notify('P2P Bridge', `Data Liaison established with ${callData.targetName}`, 'success');
+        }
     } else {
-      peerService.connectToPeer(callData.contact.peerId);
-      notify('P2P Bridge', `Data Liaison established with ${callData.targetName}`, 'success');
+        // Fallback for Demo/Self mode (if no peer defined in button click)
+        if (callData.intentType.includes('Video') || callData.intentType === 'Liaison') {
+             // Treat generic Liaison as video capable for verify
+             notify('Self-Resonance', 'Starting self-reflection stream...', 'info');
+             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+             localStream.value = stream;
+             showVideoOverlay.value = true;
+        }
     }
 
     // Apple Watch / Status sync
@@ -431,7 +493,7 @@ const handleCallAgreement = async (callData) => {
       id: Date.now().toString(),
       type: 'resonance',
       title: 'LIFE WAVE Synchronization',
-      content: `Liaison Bridge Established with ${callData.targetName}.\n\nSBT: ${result.sbtId}\nTX: ${result.txHash}\nPeer ID: ${callData.contact.peerId}`,
+      content: `Liaison Bridge Established with ${callData.targetName}.\n\nSBT: ${result.sbtId}\nTX: ${result.txHash}`,
       timestamp: new Date(),
     };
     notebookEntries.value.unshift(newEntry);
@@ -651,12 +713,12 @@ const navigateTo = (view) => {
       <!-- Right: Invisible Finance Entry -->
       <div class="flex items-center gap-4">
         <button 
-          @click="showInvisibleFinance = true" 
+          @click="showFinancePopup = true" 
           class="flex items-center gap-3 bg-[#1A1A1A] px-6 py-3 rounded-2xl shadow-2xl border border-white/10 hover:scale-105 transition-transform active:scale-95 group"
         >
           <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
           <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">Fairy Vert</span>
-          <CreditCard :size="14" class="text-white/40 group-hover:text-white transition-colors" />
+          <span class="text-sm">🧚</span>
         </button>
 
         <!-- Menu Button (Far Right) -->
@@ -675,6 +737,7 @@ const navigateTo = (view) => {
         @toggleVoice="handleToggleVoice"
         @import="handleImport"
         @vision="handleVideoChatClick"
+        @textInput="handleVoiceTranscription"
       />
       <ChatMessaging 
         v-if="activeView === 'chat'" 
@@ -686,6 +749,7 @@ const navigateTo = (view) => {
         v-if="activeView === 'notebook'" 
         :user="user" 
         :entries="notebookEntries" 
+        @save-diary="handleManualDiaryEntry"
       />
       <SystemLogs 
         v-if="activeView === 'log'"
