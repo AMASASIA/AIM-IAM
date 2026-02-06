@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen } from 'lucide-vue-next';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import OKECertificationCard from './OKECertificationCard.vue';
@@ -15,8 +15,15 @@ const emit = defineEmits(['save-diary']);
 const diaryInput = ref('');
 const showDiaryInput = ref(false);
 
-const toggleDiaryInput = () => {
+const toggleDiaryInput = async () => {
   showDiaryInput.value = !showDiaryInput.value;
+  console.log('Diary Input Toggled:', showDiaryInput.value);
+  if (showDiaryInput.value) {
+    // Wait for transition to start rendering
+    await nextTick();
+    const inputSection = document.getElementById('diary-input-section');
+    inputSection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 };
 
 const saveDiaryEntry = () => {
@@ -45,30 +52,33 @@ const saveDiaryEntry = () => {
       </header>
 
       <!-- DIARY INPUT SECTION -->
-      <transition enter-active-class="transition-all duration-500 ease-out" enter-from-class="opacity-0 -translate-y-4" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-300 ease-in" leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 -translate-y-4">
-        <section v-if="showDiaryInput" class="space-y-6">
-            <div class="bg-white/80 p-8 rounded-3xl shadow-sm border border-slate-100 backdrop-blur-md">
-                <h3 class="text-xl font-serif-luxury italic text-slate-900 mb-4 flex items-center gap-2">
-                    <Sparkles :size="18" class="text-teal-500" />
-                    <span>Write in your Diary</span>
-                </h3>
-                <textarea
-                    v-model="diaryInput"
-                    placeholder="What is on your mind today?"
-                    class="w-full h-32 p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 text-slate-700 font-serif resize-none transition-all"
-                ></textarea>
-                <div class="flex justify-end mt-4">
-                    <button 
-                    @click="saveDiaryEntry" 
-                    :disabled="!diaryInput.trim()"
-                    class="px-6 py-2 bg-slate-900 text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
-                    >
-                    Save Entry
-                    </button>
-                </div>
-            </div>
-        </section>
-      </transition>
+      <!-- DIARY INPUT SECTION -->
+      <section v-if="showDiaryInput" id="diary-input-section" class="space-y-6 relative z-[50]">
+          <div class="bg-white/80 p-8 rounded-3xl shadow-sm border border-slate-100 backdrop-blur-md">
+              <h3 class="text-xl font-serif-luxury italic text-slate-900 mb-4 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                      <Sparkles :size="18" class="text-teal-500" />
+                      <span>Write in your Diary</span>
+                  </div>
+                  <span class="text-[10px] font-mono text-slate-400 tracking-widest">{{ diaryInput.length }} / 300</span>
+              </h3>
+              <textarea
+                  v-model="diaryInput"
+                  placeholder="Capture the essence of the moment..."
+                  maxlength="300"
+                  class="w-full h-32 p-6 rounded-xl border-none bg-[#fdfbf7] text-slate-800 font-serif resize-none transition-all shadow-inner focus:ring-0 text-lg leading-relaxed placeholder:text-slate-300 placeholder:italic"
+              ></textarea>
+              <div class="flex justify-end mt-4">
+                  <button 
+                  @click="saveDiaryEntry" 
+                  :disabled="!diaryInput.trim()"
+                  class="px-6 py-2 bg-slate-900 text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                  >
+                  Save Entry
+                  </button>
+              </div>
+          </div>
+      </section>
 
       <!-- VISUAL DIARY LOG -->
       <section v-if="entries.length > 0" class="space-y-12">
