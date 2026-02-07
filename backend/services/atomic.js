@@ -7,18 +7,24 @@ const ATOMIC_ABI = [
 ];
 
 // Configuration
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || "http://localhost:8545");
-// Admin Wallet (must have funds)
-const signer = process.env.PRIVATE_KEY
-    ? new ethers.Wallet(process.env.PRIVATE_KEY, provider)
-    : ethers.Wallet.createRandom().connect(provider);
+// Configuration
+let provider, signer;
+try {
+    // Only init if explicitly configured or we want to try default
+    if (process.env.RPC_URL) {
+        provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        signer = process.env.PRIVATE_KEY
+            ? new ethers.Wallet(process.env.PRIVATE_KEY, provider)
+            : ethers.Wallet.createRandom().connect(provider);
+    }
+} catch (e) { console.warn("Provider Init Skipped"); }
 
 // Address from deployment
 const ATOMIC_ADDRESS_MOCK = "0xMockAtomicMintAddress";
 const ATOMIC_ADDRESS = process.env.ATOMIC_ADDRESS || ATOMIC_ADDRESS_MOCK;
 
 async function executeAtomicMint(userAddress, metadataURI) {
-    if (process.env.MOCK_MINT === 'true') {
+    if (process.env.MOCK_MINT === 'true' || !signer) {
         console.log("Mocking Atomic Mint...");
         return {
             tx: "0xMockAtomicTxHash_" + Date.now(),

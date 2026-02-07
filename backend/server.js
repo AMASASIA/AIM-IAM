@@ -19,6 +19,10 @@ app.use('/execute-agentic-purchase', require('./api/agenticPurchase'));
 app.use('/analyze-scene', require('./api/analyzeScene'));
 app.use('/agent', require('./api/agent'));
 app.use('/amane-l0', require('./api/amaneGateway'));
+app.use('/consensus', require('./api/consensus'));
+
+app.use('/opal', require('./api/opal_gateway'));
+app.use('/deployment', require('./api/deployment_gateway'));
 
 // Short Link Handler (e.g., /f/abc12345) to avoid conflict with static files or other routes
 // Using a prefix /f/ for safety in this mono-repo setup
@@ -30,7 +34,7 @@ app.use(express.static(path.join(__dirname, '../dist')));
 // Handle SPA routing - send all other requests to index.html
 app.get('*', (req, res) => {
   // Check if we are in API mode or serving static
-  if (req.path.startsWith('/atomicMint') || req.path.startsWith('/agent')) {
+  if (req.path.startsWith('/atomicMint') || req.path.startsWith('/agent') || req.path.startsWith('/consensus')) {
     return res.status(404).json({ error: 'API route not found' });
   }
   res.sendFile(path.join(__dirname, '../dist/index.html'));

@@ -1,6 +1,7 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
-import { Menu, X, LayoutDashboard, MessageSquare, Video, Terminal, Compass, Shield, Fingerprint, Users } from 'lucide-vue-next';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { Menu, X, LayoutDashboard, MessageSquare, Video, Terminal, Compass, Shield, Fingerprint, Users, Box, Activity } from 'lucide-vue-next';
 import AnchorScreen from '../components/AnchorScreen.vue';
 import ChatMessaging from '../components/ChatMessaging.vue';
 import NotebookView from '../components/NotebookView.vue';
@@ -26,6 +27,7 @@ import { labelingCaller } from '../services/labelingCaller';
 
 // State
 const user = ref(null);
+const router = useRouter();
 const isSearchingPeer = ref(false);
 const showVideoOverlay = ref(false);
 const { notify, notifications, removeNotification } = useNotifications();
@@ -644,6 +646,15 @@ const navigateTo = (view) => {
             {{ item.label }}
           </button>
 
+          <!-- New System Integrations -->
+          <!-- New System Integrations -->
+          <button @click="router.push('/oke')" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-blue-600 hover:bg-blue-600/10">
+              <Activity :size="16" />
+              <span class="font-serif-luxury text-base tracking-widest">OKE</span>
+          </button>
+
+
+
           <!-- Sidebar Functions (Moved from Header) -->
           <div class="pt-4 border-t border-black/5 space-y-2">
               <button @click="handleVideoChatClick" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-black/60 hover:text-black hover:bg-black/5">
@@ -653,7 +664,7 @@ const navigateTo = (view) => {
 
               <button @click="handleFinanceClick" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-emerald-600 hover:bg-emerald-500/10">
                   <CreditCard :size="16" />
-                  <span>🍃Invisible Finance</span>
+                  <span>Invisible Finance</span>
               </button>
 
               <button @click="showOKEModal = true" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-black/60 hover:text-black hover:bg-black/5">
