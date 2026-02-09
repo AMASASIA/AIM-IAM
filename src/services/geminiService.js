@@ -170,6 +170,17 @@ export const analyzeIntent = async (userInput) => {
         }
     }
 
+    // 1.7 Deployment triggers
+    if (lowerInput.includes('deploy') || lowerInput.includes('デプロイ') || lowerInput.includes('launch') || lowerInput.includes('assembly')) {
+        return {
+            intent: 'DEPLOYMENT',
+            target_person: null,
+            message: 'Amane Deployment Protocol',
+            details: 'Initializing 1-Click Assembly...',
+            confidence: 1.0
+        };
+    }
+
     const apiKey = getApiKey();
     if (!apiKey) {
         // Default to Message/Memo in Mock Mode if no keywords matched

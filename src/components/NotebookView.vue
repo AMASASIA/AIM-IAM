@@ -1,6 +1,6 @@
 <script setup>
 import { ref, nextTick } from 'vue';
-import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen } from 'lucide-vue-next';
+import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen, Mic, Video, Activity } from 'lucide-vue-next';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import OKECertificationCard from './OKECertificationCard.vue';
 
@@ -13,10 +13,11 @@ const props = defineProps({
   filter: {
     type: String,
     default: 'all'
-  }
+  },
+  isListening: Boolean
 });
 
-const emit = defineEmits(['save-diary', 'update-filter']);
+const emit = defineEmits(['save-diary', 'update-filter', 'toggle-voice', 'nav', 'action']);
 const diaryInput = ref('');
 const showDiaryInput = ref(false);
 
@@ -39,6 +40,7 @@ const filteredEntries = computed(() => {
         if (localFilter.value === 'diary') return e.type === 'diary' || e.type === 'visual_diary' || e.type === 'voice_memo' || e.type === 'standard';
         if (localFilter.value === 'memo') return e.type === 'standard' || e.type === 'voice_memo' || e.type === 'scifi' || e.type === 'system'; 
         if (localFilter.value === 'todo') return e.type === 'todo' || e.type === 'calendar' || e.type === 'habit';
+        if (localFilter.value === 'features') return e.type === 'resonance' || e.type === 'system' || e.type === 'deployment';
         return true;
     });
 });
@@ -67,11 +69,18 @@ const saveDiaryEntry = () => {
       <!-- HEADER SECTION -->
       <header class="text-center space-y-6 md:space-y-12 mt-32 md:mt-48">
         <div class="flex flex-col items-center justify-center">
-          <button @click="toggleDiaryInput" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl shadow-teal-100/20 hover:scale-110 hover:shadow-teal-500/30 transition-all cursor-pointer group active:scale-95">
-            <Feather :size="32" class="group-hover:rotate-12 transition-transform duration-500" />
-          </button>
-          <p class="mt-6 text-[9px] font-bold uppercase tracking-[0.3em] text-slate-400 hover:text-teal-500 cursor-pointer transition-colors" @click="toggleDiaryInput">
-            Tap Feather to Write
+          <div class="flex gap-6">
+            <button @click="toggleDiaryInput" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl shadow-teal-100/20 hover:scale-110 hover:shadow-teal-500/30 transition-all cursor-pointer group active:scale-95">
+              <Feather :size="32" class="group-hover:rotate-12 transition-transform duration-500" />
+            </button>
+            <button @click="$emit('toggle-voice')" :class="['w-16 h-16 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all cursor-pointer group active:scale-95 shadow-2xl', isListening ? 'bg-red-500 text-white scale-110 shadow-red-500/50' : 'bg-slate-900 text-purple-400 shadow-purple-100/20 hover:shadow-purple-500/30']">
+              <component :is="isListening ? Zap : Mic" :size="32" :class="[isListening ? 'animate-pulse' : 'group-hover:-rotate-12 transition-transform duration-500']" />
+            </button>
+          </div>
+          <p class="mt-6 text-[9px] font-bold uppercase tracking-[0.3em] text-slate-400">
+            <span class="hover:text-teal-500 cursor-pointer transition-colors" @click="toggleDiaryInput">Write</span>
+            <span class="mx-2">/</span>
+            <span class="hover:text-purple-500 cursor-pointer transition-colors" @click="$emit('toggle-voice')">Speak</span>
           </p>
         </div>
         <h1 class="font-serif-luxury text-7xl md:text-[8rem] lg:text-[10rem] text-slate-900 leading-[0.8] tracking-tighter font-bold italic select-none">Personal Notebook</h1>
@@ -83,7 +92,8 @@ const saveDiaryEntry = () => {
                     { id: 'all', label: 'All Entries' }, 
                     { id: 'diary', label: 'Diary & Voice' }, 
                     { id: 'todo', label: 'Tasks & Schedule' },
-                    { id: 'memo', label: 'Memos' }
+                    { id: 'memo', label: 'Memos' },
+                    { id: 'features', label: 'Features' }
                 ]" 
                 :key="tab.id"
                 @click="setFilter(tab.id)"
@@ -134,11 +144,47 @@ const saveDiaryEntry = () => {
         
         <div class="grid grid-cols-1 gap-12">
           <TransitionGroup name="list" tag="div" class="space-y-12">
-            <div 
-              v-for="entry in filteredEntries" 
-              :key="entry.id" 
-              class="bg-white rounded-[3rem] border border-slate-100 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-2xl hover:-translate-y-2 relative group"
-            >
+        <div 
+          v-for="entry in filteredEntries" 
+          :key="entry.id" 
+          class="bg-white rounded-[3rem] border border-slate-100 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-2xl hover:-translate-y-2 relative group"
+        >
+          <!-- FEATURE BUTTONS OVERLAY FOR FEATURES TAB -->
+          <div v-if="localFilter === 'features' && entry.id === filteredEntries[0]?.id" class="w-full p-10 bg-slate-50/50 border-b border-slate-100">
+             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+                <button @click="$emit('nav', 'oke')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-blue-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Activity :size="32" class="text-blue-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">OKE System</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Certifications</span>
+                </button>
+                <button @click="$emit('nav', 'deployment')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-purple-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Zap :size="32" class="text-purple-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Deploy Dash</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">1-Click Assembly</span>
+                    <a href="https://console.cloud.google.com/run/overview?project=gen-lang-client-0917953723" target="_blank" class="mt-2 text-[8px] text-slate-400 hover:text-purple-500 underline uppercase tracking-tighter" @click.stop>Monitor (Cloud Run)</a>
+                </button>
+                <button @click="$emit('action', 'video')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-teal-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Video :size="32" class="text-teal-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Video Bridge</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Resonance Call</span>
+                </button>
+                <button @click="$emit('nav', 'map')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-indigo-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <MapPin :size="32" class="text-indigo-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">AI Map</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Geographic Trace</span>
+                </button>
+                <button @click="$emit('action', 'finance')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-emerald-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Zap :size="32" class="text-emerald-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Fairy Vert</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Invisible Finance</span>
+                </button>
+                <button @click="$emit('action', 'recorder')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-red-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Feather :size="32" class="text-red-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Recorder</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">L0 Archive</span>
+                </button>
+             </div>
+          </div>
               <!-- NEW BADGE FOR VOICE MEMO -->
                <div v-if="entry.type === 'voice_memo' || entry.type === 'standard' && entry.title?.includes('Voice Memo')" class="absolute top-6 right-6 px-3 py-1 bg-red-500/10 text-red-600 rounded-full text-[9px] font-black uppercase tracking-widest z-10 flex items-center gap-2">
                   <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>

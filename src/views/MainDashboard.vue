@@ -127,8 +127,8 @@ onMounted(() => {
 
 
   // Unified command processor (Voice or Text)
-  const handleVoiceTranscription = async (transcript) => {
-      console.log('Processing Command:', transcript);
+  const handleVoiceTranscription = async (transcript, isText = false) => {
+      console.log('Processing Command:', transcript, 'isText:', isText);
       
       // IMMEDIATE FEEDBACK: Switch to Notebook to show we are processing
       if (activeView.value !== 'notebook') {
@@ -137,25 +137,29 @@ onMounted(() => {
       
       notify('Amane Core', `Heard: "${transcript}"`, 'info');
       
-      // Create a temporary "Processing..." entry to show immediate feedback in the notebook
       const processingId = Date.now().toString();
-      notebookEntries.value.unshift({
-          id: processingId,
-          type: 'voice_memo', // Use voice_memo type for better visibility
-          title: 'Processing Voice Command...',
-          content: 'Analyzing intent via Gemini...',
-          metadata: {
-              transcript: transcript, // This displays the spoken text clearly
-              verification_hash: 'Pending certification...'
-          },
-          timestamp: new Date(),
-          isProcessing: true
-      });
+      
+      // Only show processing entry for real voice (since it takes longer)
+      if (!isText) {
+          notebookEntries.value.unshift({
+              id: processingId,
+              type: 'voice_memo', 
+              title: 'Processing Voice Command...',
+              content: 'Analyzing intent via Gemini...',
+              metadata: {
+                  transcript: transcript,
+                  verification_hash: 'Pending certification...'
+              },
+              timestamp: new Date(),
+              isProcessing: true
+          });
+      }
       
       try {
         // Step 1: Analyze intent using AI
         const intent = await analyzeIntent(transcript);
-        console.log('AI Intent analysis:', intent);
+        console.log('AI Intent analysis final:', intent);
+        notify('AI Analysis', `Intent: ${intent.intent}`, 'info');
         
         // Note: activeView is already 'notebook'. If intent is CHAT, we switch again.
         
@@ -269,10 +273,25 @@ onMounted(() => {
              if (intent.message.includes('diary')) notebookFilter.value = 'diary';
              else if (intent.message.includes('memo')) notebookFilter.value = 'memo';
              else if (intent.message.includes('task')) notebookFilter.value = 'todo';
+             else if (intent.message.includes('feature') || intent.message.includes('system') || intent.message.includes('deploy')) notebookFilter.value = 'features';
              else notebookFilter.value = 'all'; // Default or 'all' if just "Show Notebook"
              
              notify('Notebook Navigation', `Switching view to: ${notebookFilter.value}`, 'info');
              break;
+          
+          case 'DEPLOYMENT':
+              activeView.value = 'notebook';
+              notebookFilter.value = 'features';
+              const deployEntry = {
+                  id: Date.now().toString(),
+                  type: 'deployment',
+                  title: '🚀 Deployment Protocol Seeded',
+                  content: `**Status:** Ready for Assembly\n\n- OKE Facts: Synchronized\n- Cloud Run: Connected\n- Assembly: Pending User Click\n\n[Open Deploy Dash](/deployment)`,
+                  timestamp: new Date()
+              };
+              notebookEntries.value.unshift(deployEntry);
+              notify('Deployment', 'Assembly protocol seeded in Notebook.', 'success');
+              break;
 
           case 'NOTEBOOK_MEMO':
           default:
@@ -298,8 +317,8 @@ onMounted(() => {
         console.error('Command processing error:', e);
         notify('System Error', 'Failed to process voice command.', 'error');
       } finally {
-        // Remove the temporary processing entry if we can find it (optional cleanup)
-        // For now, we leave it or replace it. The new entry will be unshifted on top.
+        // Step 3: Remove the temporary processing entry
+        notebookEntries.value = notebookEntries.value.filter(e => e.id !== processingId);
       }
     };
 
@@ -337,7 +356,7 @@ onMounted(() => {
     const recognition = new SpeechRecognition();
     recognition.continuous = false; // Keep it short and accurate
     recognition.interimResults = false;
-    recognition.lang = 'ja-JP'; // Force Japanese for testing
+    recognition.lang = 'ja-JP'; 
 
     recognition.onstart = () => {
       isListening.value = true;
@@ -782,6 +801,11 @@ const navigateTo = (view) => {
               <span class="font-serif-luxury text-base tracking-widest">OKE</span>
           </button>
 
+          <button @click="router.push('/deployment')" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-purple-600 hover:bg-purple-600/10">
+              <Zap :size="16" />
+              <span>Deploy Dash</span>
+          </button>
+
 
 
           <!-- Sidebar Functions (Moved from Header) -->
@@ -844,6 +868,13 @@ const navigateTo = (view) => {
       </div>
 
 
+      <!-- Center Navigation Transitions -->
+      <!-- Center Navigation Restored: Notebook Only -->
+      <div class="absolute left-1/2 -translate-x-1/2 hidden lg:flex items-center">
+        <button @click="navigateTo('notebook')" :class="['group transition-all hover:scale-105 active:scale-95', activeView === 'notebook' ? 'opacity-100' : 'opacity-60 hover:opacity-100']">
+          <span class="font-serif-luxury text-4xl italic tracking-tighter leading-none text-[#1A1A1A]">Notebook</span>
+        </button>
+      </div>
 
       <!-- Right: Invisible Finance Entry -->
       <div class="flex items-center gap-4">
@@ -872,7 +903,7 @@ const navigateTo = (view) => {
         @toggleVoice="handleToggleVoice"
         @import="handleImport"
         @vision="handleVideoChatClick"
-        @textInput="handleVoiceTranscription"
+        @textInput="(val) => handleVoiceTranscription(val, true)"
         @forceNotebook="forceNotebook"
       />
       <ChatMessaging 
@@ -886,8 +917,20 @@ const navigateTo = (view) => {
         :user="user" 
         :entries="notebookEntries" 
         :filter="notebookFilter"
+        :isListening="isListening"
         @save-diary="handleManualDiaryEntry"
         @update-filter="(val) => notebookFilter = val"
+        @toggle-voice="handleToggleVoice"
+        @nav="(view) => {
+            if (view === 'oke') router.push('/oke');
+            else if (view === 'deployment') router.push('/deployment');
+            else if (view === 'map') handleMapClick();
+        }"
+        @action="(type) => {
+            if (type === 'video') handleVideoChatClick();
+            else if (type === 'finance') handleFinanceClick();
+            else if (type === 'recorder') toggleRecording();
+        }"
       />
       <SystemLogs 
         v-if="activeView === 'log'"
