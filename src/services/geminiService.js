@@ -21,16 +21,18 @@ OUTPUT FORMAT (JSON only):
   "intent": "CONNECT_VIDEO" | "CONNECT_CHAT" | "ADD_CONTACT" | "MESSAGE" | "NOTEBOOK_MEMO" | "SCHEDULE_EVENT" | "TODO_TASK",
   "target_person": "nickname or name if applicable",
   "message": "the core message content/title",
-  "details": "For schedule/todo: extracted date, time, location, or bullets. Summarize key points. Null otherwise.",
+  "start_time": "ISO 8601 string (e.g., 2024-10-27T10:00:00) if a time is detected. If ambiguous, use context or NULL.",
+  "end_time": "ISO 8601 string if detected. If only duration is implied, calculate it. Default to 1 hour after start.",
+  "details": "For schedule/todo: extracted location, or bullets. Summarize key points.",
   "confidence": 0.0-1.0
 }
 
 EXAMPLES:
-Input: "@Cal 明日の10時に田村さんと会議"
-Output: {"intent": "SCHEDULE_EVENT", "target_person": "Tanaka", "message": "田村さんと会議", "details": "日時: 明日 10:00, 参加者: 田村さん", "confidence": 0.99}
+Input: "@Cal 明日の10時に田村さんと会議" (Assume current is 2024-10-26)
+Output: {"intent": "SCHEDULE_EVENT", "message": "田村さんと会議", "start_time": "2024-10-27T10:00:00", "end_time": "2024-10-27T11:00:00", "details": "参加者: 田村さん", "confidence": 0.99}
 
-Input: "@amas 牛乳を買う、レポートを書く"
-Output: {"intent": "TODO_TASK", "target_person": null, "message": "タスクリスト作成", "details": "- 牛乳を買う\n- レポートを書く", "confidence": 0.99}
+Input: "@amas 牛乳を買う"
+Output: {"intent": "TODO_TASK", "target_person": null, "message": "タスクリスト", "details": "- 牛乳を買う", "confidence": 0.99}
 `;
 
 const KERNEL_ARCHITECT_INSTRUCTION = `You are the INTENT ARCHITECT of the Amane Protocol.
@@ -198,7 +200,7 @@ export const analyzeIntent = async (userInput) => {
     });
 
     return withRetry(async () => {
-        const result = await model.generateContent(userInput);
+        const result = await model.generateContent(`${userInput}\n\n[Current System Time: ${new Date().toLocaleString()}]`);
         const response = await result.response;
         try {
             return JSON.parse(response.text());
@@ -281,11 +283,17 @@ Determine if this was "AUTONOMOUS", "IMPULSIVE", or "COERCED". Return JSON only.
 export const analyzeImage = async (base64Data, mimeType) => {
     const apiKey = getApiKey();
     if (!apiKey) {
-        return "Visual analysis not available in demo mode.";
+        return {
+            notebookContent: "Visual analysis not available in demo mode.",
+            gravityNodes: []
+        };
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        generationConfig: { responseMimeType: "application/json" }
+    });
 
     const imagePart = {
         inlineData: {
@@ -295,34 +303,35 @@ export const analyzeImage = async (base64Data, mimeType) => {
     };
 
     const textPart = {
-        text: `You are the Antigravity Vision-Agent. Analyze this asset for OKE Certification.
-        
-        1. Frame-by-Frame Inspection: Examine material luster, texture continuity, and OKE Grade standards.
-        2. Audio-Truth Correlation: If specific wear is mentioned, identify the visual evidence coordinates.
-        3. Automatic Copywriting: Generate a luxury product description focused on its "history and value" (Luxury Brand tone like ZARA Home or LVMH), not just specs.
-        
-        Output format:
-        # [Product Name]
-        **OKE Grade: [X.X/10.0]**
-        
-        ## Insighted Value
-        [Luxury Copywriting Paragraph]
-        
-        ## Atomic Facts
-        - [Fact 1]
-        - [Fact 2]
-        
-        Interpret the mood and significance for the user's Secret Notebook. Output Markdown formatted text only.`
+        text: `You are the Antigravity Vision-Agent. Analyze this asset to extract both Semantic Depth (for Notebook) and Gravitational Topology (for AI Map).
+
+        1. **Visual Semantics**: Examine material, lighting, and cultural signifiers.
+        2. **Luxury Copywriting**: Generate a "ZARA Home" or "LVMH" style description.
+        3. **Gravity Extraction**: Identify 3-5 key concepts (nodes) that anchor this image in the user's life.
+
+        Output JSON structure:
+        {
+            "notebookContent": "# [Product Name]\n**OKE Grade: [X.X/10.0]**\n\n## Insighted Value\n[Luxury Description]\n\n## Atomic Facts\n- [Fact 1]\n- [Fact 2]",
+            "gravityNodes": [
+                { "id": "node-1", "label": "Concept Name", "mass": 0.8, "type": "material|emotion|memory" }
+            ],
+            "auraColor": "hex code (e.g. #FFD700)"
+        }`
     };
 
     return withRetry(async () => {
         try {
             const result = await model.generateContent([imagePart, textPart]);
             const response = await result.response;
-            return response.text() || "Vision analysis complete.";
+            return JSON.parse(response.text());
         } catch (e) {
             console.error("Gemini Vision Error:", e);
-            return "Visual Analysis halted. (API Key or Quota issue). Preserving raw visual data in Notebook.";
+            // Fallback for valid non-JSON return or error
+            return {
+                notebookContent: "Visual Analysis halted. Preserving raw visual data.",
+                gravityNodes: [],
+                auraColor: "#FFFFFF"
+            };
         }
     });
 };

@@ -64,10 +64,10 @@ const saveDiaryEntry = () => {
 
 <template>
   <div v-if="user" class="w-full h-full flex flex-col items-center overflow-y-auto custom-scroll bg-white/50 backdrop-blur-sm">
-    <div class="w-full max-w-6xl px-6 md:px-12 py-10 md:py-20 space-y-16 md:space-y-32">
+    <div class="w-full max-w-6xl px-6 md:px-12 py-6 md:py-12 space-y-12 md:space-y-20">
       
       <!-- HEADER SECTION -->
-      <header class="text-center space-y-6 md:space-y-12 mt-32 md:mt-48">
+      <header class="text-center space-y-6 md:space-y-8 mt-16 md:mt-24">
         <div class="flex flex-col items-center justify-center">
           <div class="flex gap-6">
             <button @click="toggleDiaryInput" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl shadow-teal-100/20 hover:scale-110 hover:shadow-teal-500/30 transition-all cursor-pointer group active:scale-95">
