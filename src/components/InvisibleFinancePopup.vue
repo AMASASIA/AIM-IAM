@@ -36,11 +36,11 @@ defineExpose({ triggerConsensus, isVisible });
   <Transition name="amas-fade">
     <div v-if="isVisible" class="amas-overlay">
       <div class="glass-card">
-        <div class="brand">AMAS ▼ AI</div>
+        <div class="brand">Tive ◎ AI</div>
         
         <div class="consensus-core">
           <button class="pulse-mic" :class="{ 'is-loading': isProcessing }" @click="handleAgreement">
-            <div class="inner-pulse">❤️</div>
+            <div class="inner-pulse">🧚</div>
           </button>
           <p class="status-msg">Just moment / 少々お待ちくださいませ</p>
         </div>

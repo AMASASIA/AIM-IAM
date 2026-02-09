@@ -3,14 +3,14 @@ const { getDatabase } = require("firebase/database");
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const firebaseConfig = {
-    apiKey: process.env.VITE_FIREBASE_API_KEY,
-    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-    databaseURL: process.env.VITE_FIREBASE_DATABASE_URL,
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.VITE_FIREBASE_APP_ID,
-    measurementId: "G-1N0FYZK2W9" // Hardcoded from user request if needed, or ignored for backend
+    apiKey: process.env.VITE_FIREBASE_API_KEY || "AIzaSyAKPoNf_Ou8VuYW98_5vitzu0cQMxaX-Nw",
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || "gen-lang-client-0556123756.firebaseapp.com",
+    databaseURL: process.env.VITE_FIREBASE_DATABASE_URL || "https://gen-lang-client-0556123756-default-rtdb.firebaseio.com",
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || "gen-lang-client-0556123756",
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || "gen-lang-client-0556123756.firebasestorage.app",
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "463106103162",
+    appId: process.env.VITE_FIREBASE_APP_ID || "1:463106103162:web:660f4da3a32643a5f728c3",
+    measurementId: "G-1N0FYZK2W9"
 };
 
 // Singleton pattern

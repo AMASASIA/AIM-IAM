@@ -11,11 +11,22 @@ const processedContent = computed(() => {
   if (!props.content) return '';
   
   // Basic processing: preserve line breaks and simple formatting
-  return props.content
+  let html = String(props.content);
+  
+  // Handle Markdown Links [text](url)
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-semibold">$1</a>');
+
+  // Handle bare URLs (http://...) that aren't inside markdown links
+  // Negative lookbehind ensures we don't double-link inside existing hrefs
+  html = html.replace(/(?<!href=")(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline break-all">$1</a>');
+
+  html = html
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
     .replace(/\*(.*?)\*/g, '<em>$1</em>')               // Italic
     .replace(/`(.*?)`/g, '<code class="bg-mono-200 text-mono-800 px-1.5 py-0.5 rounded text-sm font-mono border border-mono-300">$1</code>')  // Inline code
     .replace(/\n/g, '<br/>');  // Line breaks
+
+  return html;
 });
 </script>
 

@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 /**
@@ -8,7 +9,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 class LLMProvider {
     constructor() {
-        this.apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+        this.apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "AIzaSyCiLO-pbMChwMe3vIYyA7ZYrFPolOHNWWw";
         this.modelName = "gemini-1.5-flash";
 
         if (this.apiKey && !this.apiKey.includes('placeholder')) {

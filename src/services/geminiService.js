@@ -3,30 +3,35 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const INTENT_ROUTER_INSTRUCTION = `You are an AI Intent Router for the Amane Protocol.
 Analyze user input and determine their intent.
 
+SPECIAL TRIGGERS (High Priority):
+- "@Cal", "At Cal", "アットカル", "あとかる", "カレンダー" -> Triggers SCHEDULE_EVENT
+- "@amas", "At Amas", "アットアマス", "あとあます", "Memo", "Todo" -> Triggers TODO_TASK or NOTEBOOK_MEMO
+
 POSSIBLE INTENTS:
 1. "CONNECT_VIDEO" - User wants to start a video chat with someone.
 2. "CONNECT_CHAT" - User wants to start a text chat.
 3. "ADD_CONTACT" - User wants to add a contact.
 4. "MESSAGE" - Normal message to send to the current chat context.
-5. "NOTEBOOK_MEMO" - General memo or idea.
-6. "SCHEDULE_EVENT" - User mentions a date, time, meeting, or schedule (e.g. "Meeting with Bob tomorrow at 2pm", "Schedule lunch next Friday").
-7. "TODO_TASK" - User mentions a task, to-do, shopping list (e.g. "Buy milk", "Task: Finish report").
+5. "NOTEBOOK_MEMO" - General memo, diary entry, or idea.
+6. "SCHEDULE_EVENT" - User mentions a date, time, meeting, or starts with "@Cal".
+7. "TODO_TASK" - User mentions a task, to-do, start with "@amas", or specific action items.
 
 OUTPUT FORMAT (JSON only):
 {
   "intent": "CONNECT_VIDEO" | "CONNECT_CHAT" | "ADD_CONTACT" | "MESSAGE" | "NOTEBOOK_MEMO" | "SCHEDULE_EVENT" | "TODO_TASK",
   "target_person": "nickname or name if applicable",
-  "message": "the core message content",
-  "details": "For schedule/todo: extracted date, time, location, or list items. Null otherwise.",
+  "message": "the core message content/title",
+  "details": "For schedule/todo: extracted date, time, location, or bullets. Summarize key points. Null otherwise.",
   "confidence": 0.0-1.0
 }
 
 EXAMPLES:
-Input: "Meeting with Tanaka tomorrow at 10 AM"
-Output: {"intent": "SCHEDULE_EVENT", "target_person": "Tanaka", "message": "Meeting with Tanaka", "details": "Tomorrow 10 AM", "confidence": 0.95}
+Input: "@Cal 明日の10時に田村さんと会議"
+Output: {"intent": "SCHEDULE_EVENT", "target_person": "Tanaka", "message": "田村さんと会議", "details": "日時: 明日 10:00, 参加者: 田村さん", "confidence": 0.99}
 
-Input: "Buy milk and eggs"
-Output: {"intent": "TODO_TASK", "target_person": null, "message": "Buy milk and eggs", "details": "milk, eggs", "confidence": 0.9}`;
+Input: "@amas 牛乳を買う、レポートを書く"
+Output: {"intent": "TODO_TASK", "target_person": null, "message": "タスクリスト作成", "details": "- 牛乳を買う\n- レポートを書く", "confidence": 0.99}
+`;
 
 const KERNEL_ARCHITECT_INSTRUCTION = `You are the INTENT ARCHITECT of the Amane Protocol.
 Operating on Amane protocol and SSM (State Space Model) Logic.
@@ -58,7 +63,7 @@ const withRetry = async (fn, retries = 3, delay = 1000) => {
 
 // Initialize Gemini
 const getApiKey = () => {
-    return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY || '';
+    return import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyCiLO-pbMChwMe3vIYyA7ZYrFPolOHNWWw";
 };
 
 export const createKernelSession = (history = []) => {
@@ -86,14 +91,89 @@ export const createKernelSession = (history = []) => {
 };
 
 // NEW: Intent Analysis for Voice Commands
+// NEW: Intent Analysis for Voice Commands
+// NEW: Intent Analysis for Voice Commands
 export const analyzeIntent = async (userInput) => {
+    // Normalize input: Full-width @ to half-width, remove extra spaces
+    const normalizedInput = userInput.replace(/＠/g, '@').replace(/　/g, ' ').trim();
+    const lowerInput = normalizedInput.toLowerCase();
+
+    // 1. Prioritize Local Keyword Detection (Faster & More Reliable)
+
+    // 1.1 Google Calendar / Schedule triggers
+    if (lowerInput.match(/(?:[\/@＠]+)cal/) || lowerInput.includes('schedule') || lowerInput.includes('meeting') || lowerInput.includes('カレンダー') || lowerInput.includes('予定') || lowerInput.includes('会議')) {
+        const message = normalizedInput.replace(/(?:[\/@＠]+)cal|schedule|meeting|カレンダー|予定|会議/gi, '').trim() || 'New Schedule';
+        return {
+            intent: 'SCHEDULE_EVENT',
+            target_person: null,
+            message: message,
+            details: 'Detected via keyword',
+            confidence: 1.0
+        };
+    }
+
+    // 1.2 Task / Todo / Notebook triggers
+    if (lowerInput.match(/(?:[\/@＠]+)amas/) || lowerInput.includes('todo') || lowerInput.includes('task') || lowerInput.includes('タスク') || lowerInput.includes('memo') || lowerInput.includes('メモ')) {
+        const message = normalizedInput.replace(/(?:[\/@＠]+)amas|todo|task|タスク|memo|メモ/gi, '').trim() || 'New Task';
+        return {
+            intent: 'TODO_TASK',
+            target_person: null,
+            message: message,
+            details: 'Detected via keyword',
+            confidence: 1.0
+        };
+    }
+
+    // 1.3 Morning Briefing / Start Day triggers
+    if (lowerInput.includes('start') || lowerInput.includes('morning') || lowerInput.includes('briefing') || lowerInput.includes('おはよう') || lowerInput.includes('スタート') || lowerInput.includes('今日')) {
+        return {
+            intent: 'START_DAY',
+            target_person: null,
+            message: 'All-in-One Daily Briefing',
+            details: 'Initiating AMAS Secretary Protocol...',
+            confidence: 1.0
+        };
+    }
+
+    // 1.4 Routine / Habit triggers
+    if (lowerInput.includes('routine') || lowerInput.includes('habit') || lowerInput.includes('ルーティン') || lowerInput.includes('習慣')) {
+        const message = normalizedInput.replace(/routine|habit|ルーティン|習慣/gi, '').trim() || 'New Routine';
+        return {
+            intent: 'ADD_ROUTINE',
+            target_person: null,
+            message: message,
+            details: 'Habit Formation Protocol',
+            confidence: 1.0
+        };
+    }
+
+    // 1.5 Video connection triggers
+    if (lowerInput.includes('video') || lowerInput.includes('ビデオ') || lowerInput.includes('call') || lowerInput.includes('通話')) {
+        return {
+            intent: 'CONNECT_VIDEO',
+            target_person: null,
+            message: userInput,
+            confidence: 0.9
+        };
+    }
+
+    // 1.6 Navigation triggers (Show Diary, Show Tasks, etc.)
+    if (lowerInput.match(/show|open|go to|見せて|開いて|移動/)) {
+        if (lowerInput.match(/diary|journal|日記/)) {
+            return { intent: 'NAVIGATE', target_person: null, message: 'diary', confidence: 1.0 };
+        }
+        if (lowerInput.match(/memo|note|メモ/)) {
+            return { intent: 'NAVIGATE', target_person: null, message: 'memo', confidence: 1.0 };
+        }
+        if (lowerInput.match(/task|todo|schedule|calendar|タスク|予定|カレンダー/)) {
+            return { intent: 'NAVIGATE', target_person: null, message: 'task', confidence: 1.0 };
+        }
+    }
+
     const apiKey = getApiKey();
     if (!apiKey) {
-        // Mock mode: simple keyword detection
-        if (userInput.includes('ビデオ') || userInput.includes('video')) {
-            return { intent: 'CONNECT_VIDEO', target_person: null, message: userInput, confidence: 0.5 };
-        }
-        return { intent: 'MESSAGE', target_person: null, message: userInput, confidence: 1.0 };
+        // Default to Message/Memo in Mock Mode if no keywords matched
+        return { intent: 'NOTEBOOK_MEMO', target_person: null, message: userInput, confidence: 0.5 };
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -112,7 +192,7 @@ export const analyzeIntent = async (userInput) => {
         try {
             return JSON.parse(response.text());
         } catch (e) {
-            return { intent: 'MESSAGE', target_person: null, message: userInput, confidence: 0.5 };
+            return { intent: 'NOTEBOOK_MEMO', target_person: null, message: userInput, confidence: 0.5 };
         }
     });
 };

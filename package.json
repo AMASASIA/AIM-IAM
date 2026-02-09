@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start": "node backend/server.js",
     "server": "node backend/server.js",
+    "dev:united": "node scripts/dev-runner.cjs",
     "build": "vite build",
     "preview": "vite preview"
   },

@@ -122,11 +122,13 @@ onUnmounted(() => {
            <span class="text-[7px] font-bold uppercase tracking-widest mt-1 opacity-40 group-hover:opacity-100">Trace</span>
        </button>
 
-        <!-- Keyboard Input -->
+       <!-- Keyboard Input -->
        <button @click="showTextInput = !showTextInput" class="w-14 h-14 flex flex-col items-center justify-center gap-1 bg-white/60 border border-black/5 text-black rounded-[1.5rem] hover:bg-black/5 transition-all group">
            <Keyboard :size="18" class="opacity-40 group-hover:opacity-100 transition-opacity" />
            <span class="text-[7px] font-bold uppercase tracking-widest mt-1 opacity-40 group-hover:opacity-100">Key</span>
        </button>
+
+
 
     </div>
 
@@ -140,7 +142,7 @@ onUnmounted(() => {
                     type="text" 
                     placeholder="Type command (e.g. '@Cal Meeting tomorrow')" 
                     class="flex-1 bg-transparent border-none focus:ring-0 text-slate-800 placeholder:text-slate-400 font-medium px-4"
-                    autoFocus
+                    autofocus
                 />
                 <button @click="handleTextSubmit" class="p-3 bg-black text-white rounded-full hover:scale-105 transition-transform">
                     <Navigation :size="16" class="rotate-90" />
