@@ -870,10 +870,7 @@ const navigateTo = (view) => {
               <span class="font-serif-luxury text-base tracking-widest">OKE</span>
           </button>
 
-          <button @click="router.push('/deployment')" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-purple-600 hover:bg-purple-600/10">
-              <Zap :size="16" />
-              <span>Deploy Dash</span>
-          </button>
+          
 
 
 

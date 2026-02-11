@@ -157,12 +157,7 @@ const saveDiaryEntry = () => {
                     <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">OKE System</span>
                     <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Certifications</span>
                 </button>
-                <button @click="$emit('nav', 'deployment')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-purple-500 transition-all group/btn shadow-sm hover:shadow-xl">
-                    <Zap :size="32" class="text-purple-500 mb-4 group-hover/btn:scale-110 transition-transform" />
-                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Deploy Dash</span>
-                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">1-Click Assembly</span>
-                    <a href="https://console.cloud.google.com/run/overview?project=gen-lang-client-0917953723" target="_blank" class="mt-2 text-[8px] text-slate-400 hover:text-purple-500 underline uppercase tracking-tighter" @click.stop>Monitor (Cloud Run)</a>
-                </button>
+                
                 <button @click="$emit('action', 'video')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-teal-500 transition-all group/btn shadow-sm hover:shadow-xl">
                     <Video :size="32" class="text-teal-500 mb-4 group-hover/btn:scale-110 transition-transform" />
                     <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Video Bridge</span>
