@@ -32,6 +32,14 @@
             "destination": "/backend/server.js"
         },
         {
+            "source": "/consensus(.*)",
+            "destination": "/backend/server.js"
+        },
+        {
+            "source": "/deployment(.*)",
+            "destination": "/backend/server.js"
+        },
+        {
             "source": "/f(.*)",
             "destination": "/backend/server.js"
         },

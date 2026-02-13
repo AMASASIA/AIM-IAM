@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 
 const props = defineProps({
   isLoading: Boolean
@@ -10,8 +10,29 @@ const emit = defineEmits(['anchor']);
 const threadsId = ref('');
 const igId = ref('');
 
+// Load saved handles on mount
+onMounted(() => {
+    const savedThreads = localStorage.getItem('amas_anchor_threads');
+    const savedIg = localStorage.getItem('amas_anchor_ig');
+    
+    // Also check URL params for magic links
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramT = urlParams.get('t');
+    const paramI = urlParams.get('i');
+
+    if (paramT) threadsId.value = paramT;
+    else if (savedThreads) threadsId.value = savedThreads;
+
+    if (paramI) igId.value = paramI;
+    else if (savedIg) igId.value = savedIg;
+});
+
 const handleSubmit = () => {
   if (threadsId.value && igId.value) {
+    // Save handles for next time
+    localStorage.setItem('amas_anchor_threads', threadsId.value);
+    localStorage.setItem('amas_anchor_ig', igId.value);
+    
     emit('anchor', threadsId.value, igId.value);
   }
 };

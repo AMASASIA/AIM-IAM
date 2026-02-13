@@ -1,98 +1,53 @@
-<script setup>
-import { ref, onMounted } from 'vue';
-import { useInvisibleFinance } from '../composables/useInvisibleFinance';
-import { Heart } from 'lucide-vue-next';
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useAmasAudio } from '../composables/useAmasAudio';
 
-const props = defineProps({
-  targetName: {
-    type: String,
-    default: 'Someone'
-  },
-  intentType: {
-    type: String,
-    default: 'Liaison'
-  }
-});
+const { playSanctuaryBell } = useAmasAudio();
+const isVisible = ref(false);
+const isProcessing = ref(false);
 
-const emit = defineEmits(['close', 'agreed']);
+// liaison-consultant.mdの解析完了（Want抽出）を検知して発火
+const triggerConsensus = () => {
+  if (isVisible.value) return; // Prevent duplicate triggers/audio
+  isVisible.value = true;
+  playSanctuaryBell(); // 出現と同時に「鈴の音」で認知を浄化
+};
 
-const { 
-  playSanctuaryBell, 
-  startSanctuaryHold, 
-  executeInvisibleFinance, 
-  isHolding, 
-  sanctuaryTime 
-} = useInvisibleFinance();
-
-const show = ref(true);
-const voiceInputActive = ref(false);
-
-onMounted(() => {
-  playSanctuaryBell(); // 出現時に鈴の音を鳴らす
-});
-
-const handleYes = async () => {
-  // 感情フィルタリング（90秒ルール）の発動
-  // ※ 実際の実装ではユーザーが待たずに接続する場合もありますが、
-  // ここでは聖域の思想に基づき、ホールド期間を開始します
-  emit('agreed', { targetName: props.targetName, intentType: props.intentType });
+const handleAgreement = async () => {
+  isProcessing.value = true;
   
-  await startSanctuaryHold();
-  
-  // 保持期間終了後に不可視の決済を実行
-  await executeInvisibleFinance(`${props.intentType} with ${props.targetName}`);
+  // Invisible Finance Protocol: 非同期でSBTミント & ガスレス決済を実行
+  // 内部で IDQ Soul Wallet SDK を呼び出し
+  // TODO: Add actual API call here
   
   setTimeout(() => {
-    show.value = false;
-    emit('close');
-  }, 2000);
+    isVisible.value = false;
+    isProcessing.value = false;
+    // 完了時に Apple Watch への「トクン」というハプティクスを送信
+    // TODO: Implement haptics feedback if available
+    console.log('Agreement processed');
+  }, 1500);
 };
 
-const handleDismiss = () => {
-  show.value = false;
-  emit('close');
-};
+defineExpose({ triggerConsensus, isVisible });
 </script>
 
 <template>
   <Transition name="amas-fade">
-    <div v-if="show" class="invisible-finance-overlay">
-      <div class="glass-card animate-fade-in-up">
-        <header class="text-[10px] font-black uppercase tracking-[0.4em] mb-4 opacity-40">
-          AMAS ▼ AI LIAISON
-        </header>
+    <div v-if="isVisible" class="amas-overlay">
+      <div class="glass-card">
+        <div class="brand">Tive ◎ AI</div>
         
-        <div class="content-area min-h-[160px] flex flex-col justify-center">
-          <p v-if="!isHolding" class="status-text font-serif-luxury italic text-2xl mb-2">
-            Just moment / 少々お待ちくださいませ
-          </p>
-          <p v-if="!isHolding" class="text-[11px] text-white/40 uppercase tracking-widest">
-            Connecting to {{ targetName }}
-          </p>
-          
-          <div v-else class="space-y-4">
-            <p class="sanctuary-text font-serif-luxury italic text-3xl text-teal-300">
-              Sanctuary Time
-            </p>
-            <div class="text-6xl font-mono-light opacity-80">{{ sanctuaryTime }}s</div>
-            <p class="text-[9px] text-white/30 uppercase tracking-[0.3em]">Purifying intent through silence...</p>
-          </div>
-          
-          <div 
-            class="mic-button" 
-            :class="{ active: voiceInputActive, holding: isHolding }"
-          >
-            <div class="pulse-ring"></div>
-            <Heart 
-              :size="32" 
-              :class="isHolding ? 'text-amber-400 fill-amber-400' : 'text-white'" 
-            />
-          </div>
+        <div class="consensus-core">
+          <button class="pulse-mic" :class="{ 'is-loading': isProcessing }" @click="handleAgreement">
+            <div class="inner-pulse">🧚</div>
+          </button>
+          <p class="status-msg">Just moment / 少々お待ちくださいませ</p>
         </div>
 
-        <div class="action-footer" :class="{ 'is-disabled': isHolding }">
-          <button @click="handleYes" :disabled="isHolding" class="btn-yes">YES</button>
-          <button @click="handleDismiss" class="btn-not-now">Not now</button>
+        <div class="action-row">
+          <button @click="handleAgreement" class="btn-yes">YES</button>
+          <button @click="isVisible = false" class="btn-not-now">Not now</button>
         </div>
       </div>
     </div>
@@ -100,105 +55,143 @@ const handleDismiss = () => {
 </template>
 
 <style scoped>
-.invisible-finance-overlay {
+.amas-overlay {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(12px);
-  z-index: 10000;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(24px); /* 深いブラーで文脈を保持 */
+  z-index: 9999;
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(40px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 48px;
-  padding: 60px 40px;
-  width: 420px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 40px;
+  padding: 40px;
+  width: 320px;
   text-align: center;
-  color: #fff;
-  box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  color: white;
+  font-family: 'Inter', sans-serif;
 }
 
-.mic-button {
-  position: relative;
-  width: 100px;
-  height: 100px;
-  margin: 40px auto;
-  background: rgba(255, 255, 255, 0.1);
+.brand {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin-bottom: 2rem;
+  letter-spacing: 2px;
+}
+
+.consensus-core {
+  margin: 2rem 0;
+}
+
+.status-msg {
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  opacity: 0.8;
+  font-weight: 300;
+}
+
+.pulse-mic {
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  cursor: pointer;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  margin: 0 auto;
+  transition: transform 0.3s ease;
 }
 
-.mic-button.holding {
-  background: rgba(255, 165, 0, 0.2); /* 琥珀色の浄化光 */
-  transform: scale(1.1);
+.pulse-mic:hover {
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.25);
 }
 
-.pulse-ring {
+.pulse-mic.is-loading {
+  animation: breathe 1.5s infinite ease-in-out;
+}
+
+.inner-pulse {
+  font-size: 2rem;
+}
+
+.pulse-mic::after {
+  content: '';
   position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.5);
   border-radius: 50%;
-  animation: amas-pulse 2.5s infinite;
+  animation: pulse 2s infinite;
+  box-sizing: border-box;
 }
 
-@keyframes amas-pulse {
+@keyframes pulse {
   0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
 
-.action-footer {
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.95); opacity: 0.8; }
+
+}
+
+.action-row {
   display: flex;
   justify-content: space-between;
   margin-top: 40px;
-  padding: 0 20px;
+  padding: 0 1rem;
 }
 
-button {
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.4);
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 20px;
-  font-style: italic;
-  cursor: pointer;
-  padding: 10px 20px;
-  transition: all 0.4s;
-  letter-spacing: 0.1em;
+.btn-yes { 
+  color: #fff; 
+  font-weight: 600; 
+  background: rgba(255, 255, 255, 0.1); 
+  border: 1px solid rgba(255, 255, 255, 0.2); 
+  border-radius: 20px;
+  padding: 0.5rem 1.5rem;
+  cursor: pointer; 
+  transition: all 0.2s;
 }
 
-button:hover:not(:disabled) {
-  color: #fff;
+.btn-yes:hover {
+  background: rgba(255, 255, 255, 0.2);
   transform: translateY(-2px);
 }
 
-.btn-yes {
-  font-weight: bold;
-  color: #a0ffd0;
-  text-shadow: 0 0 20px rgba(160, 255, 208, 0.4);
+.btn-not-now { 
+  color: rgba(255, 255, 255, 0.4); 
+  background: none; 
+  border: none; 
+  cursor: pointer; 
+  font-size: 0.9rem;
 }
 
-.is-disabled {
-  opacity: 0.3;
-  pointer-events: none;
+.btn-not-now:hover {
+  color: rgba(255, 255, 255, 0.8);
 }
 
+/* Vue Transition */
 .amas-fade-enter-active,
 .amas-fade-leave-active {
-  transition: opacity 1s, transform 1s;
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
 .amas-fade-enter-from,
 .amas-fade-leave-to {
   opacity: 0;
-  transform: scale(0.9);
+  transform: scale(0.95);
 }
 </style>

@@ -1,91 +1,332 @@
 <script setup>
-import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen } from 'lucide-vue-next';
+import { ref, nextTick } from 'vue';
+import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen, Mic, Video, Activity, Globe } from 'lucide-vue-next';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import OKECertificationCard from './OKECertificationCard.vue';
+import MapShareModal from './MapShareModal.vue';
+import { collection, addDoc } from 'firebase/firestore';
+import { firestore } from '../firebase';
 
 const props = defineProps({
   user: Object,
   entries: {
     type: Array,
     default: () => []
-  }
+  },
+  filter: {
+    type: String,
+    default: 'all'
+  },
+  isListening: Boolean
 });
+
+const emit = defineEmits(['save-diary', 'update-filter', 'toggle-voice', 'nav', 'action', 'notify']);
+const diaryInput = ref('');
+const showDiaryInput = ref(false);
+
+const localFilter = ref(props.filter);
+
+// Sync prop change to local state
+import { watch, computed } from 'vue';
+watch(() => props.filter, (newVal) => {
+    localFilter.value = newVal;
+});
+
+const setFilter = (val) => {
+    localFilter.value = val;
+    emit('update-filter', val);
+};
+
+const filteredEntries = computed(() => {
+    if (localFilter.value === 'all') return props.entries;
+    return props.entries.filter(e => {
+        if (localFilter.value === 'diary') return e.type === 'diary' || e.type === 'visual_diary' || e.type === 'voice_memo' || e.type === 'standard';
+        if (localFilter.value === 'memo') return e.type === 'standard' || e.type === 'voice_memo' || e.type === 'scifi' || e.type === 'system'; 
+        if (localFilter.value === 'todo') return e.type === 'todo' || e.type === 'calendar' || e.type === 'habit';
+        if (localFilter.value === 'features') return e.type === 'resonance' || e.type === 'system' || e.type === 'deployment';
+        return true;
+    });
+});
+
+const toggleDiaryInput = async () => {
+  showDiaryInput.value = !showDiaryInput.value;
+  if (showDiaryInput.value) {
+    await nextTick();
+    const inputSection = document.getElementById('diary-input-section');
+    inputSection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+};
+
+const saveDiaryEntry = () => {
+    if (!diaryInput.value.trim()) return;
+    
+    // Check for Amas Trigger
+    if (diaryInput.value.toLowerCase().includes('@amas')) {
+        emit('trigger-sanctuary', diaryInput.value);
+        diaryInput.value = '';
+        showDiaryInput.value = false;
+        return;
+    }
+
+    emit('save-diary', diaryInput.value);
+    diaryInput.value = '';
+    showDiaryInput.value = false;
+};
+
+// --- Map Share Logic ---
+const showMapModal = ref(false);
+const targetNote = ref(null);
+const isSharing = ref(false);
+
+const openShareModal = (entry) => {
+    targetNote.value = entry;
+    showMapModal.value = true;
+};
+
+const confirmShare = async () => {
+    if (!targetNote.value) return;
+    isSharing.value = true;
+    
+    if (!navigator.geolocation) {
+        emit('notify', 'System', 'Geolocation not supported.', 'error');
+        isSharing.value = false;
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        try {
+            const { latitude, longitude } = position.coords;
+            
+            await addDoc(collection(firestore, 'raw_drops'), {
+                text: targetNote.value.content,
+                title: targetNote.value.title || 'Untitled',
+                location: {
+                    lat: latitude,
+                    lng: longitude
+                },
+                source: 'notebook',
+                timestamp: new Date(),
+                userId: props.user?.id || 'anonymous',
+                status: 'pending_ai'
+            });
+
+            emit('notify', 'Aether Map', 'Request Sent to Aether.', 'success');
+            showMapModal.value = false;
+        } catch (e) {
+            console.error("Share failed", e);
+            emit('notify', 'System', 'Failed to share memory.', 'error');
+        } finally {
+            isSharing.value = false;
+            targetNote.value = null;
+        }
+    }, (err) => {
+        console.error("Geo error", err);
+        emit('notify', 'System', 'Location access denied.', 'error');
+        isSharing.value = false;
+    });
+};
 </script>
 
 <template>
-  <div v-if="user" class="w-full h-full flex flex-col items-center overflow-y-auto custom-scroll bg-white/50 backdrop-blur-sm">
-    <div class="w-full max-w-6xl px-6 md:px-12 py-10 md:py-20 space-y-16 md:space-y-32">
+  <div v-if="user" class="w-full h-full flex flex-col items-center overflow-y-auto custom-scroll bg-white/50 backdrop-blur-sm relative z-0" id="notebook-container">
+    <div class="w-full max-w-6xl px-6 md:px-12 py-6 md:py-12 space-y-12 md:space-y-20 relative z-10">
       
       <!-- HEADER SECTION -->
-      <header class="text-center space-y-6 md:space-y-12 mt-32 md:mt-48">
-        <div class="flex justify-center">
-          <div class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl shadow-teal-100/20">
-            <Feather :size="32" />
+      <header class="text-center space-y-6 md:space-y-8 mt-16 md:mt-24">
+        <div class="flex flex-col items-center justify-center">
+          <div class="flex gap-6">
+            <button @click="toggleDiaryInput" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl shadow-teal-100/20 hover:scale-110 hover:shadow-teal-500/30 transition-all cursor-pointer group active:scale-95">
+              <Feather :size="32" class="group-hover:rotate-12 transition-transform duration-500" />
+            </button>
+            <button @click="$emit('toggle-voice')" :class="['w-16 h-16 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all cursor-pointer group active:scale-95 shadow-2xl', isListening ? 'bg-red-500 text-white scale-110 shadow-red-500/50' : 'bg-slate-900 text-purple-400 shadow-purple-100/20 hover:shadow-purple-500/30']">
+              <component :is="isListening ? Zap : Mic" :size="32" :class="[isListening ? 'animate-pulse' : 'group-hover:-rotate-12 transition-transform duration-500']" />
+            </button>
           </div>
+          <p class="mt-6 text-[9px] font-bold uppercase tracking-[0.3em] text-slate-400">
+            <span class="hover:text-teal-500 cursor-pointer transition-colors" @click="toggleDiaryInput">Write</span>
+            <span class="mx-2">/</span>
+            <span class="hover:text-purple-500 cursor-pointer transition-colors" @click="$emit('toggle-voice')">Speak</span>
+          </p>
         </div>
-        <h1 class="font-serif-luxury text-7xl md:text-[10rem] lg:text-[12rem] text-slate-900 leading-[0.8] tracking-tighter font-bold italic select-none">Personal Notebook</h1>
-        <p class="text-[10px] md:text-[14px] font-black uppercase tracking-[0.5em] md:tracking-[1em] text-slate-300">Identity x Semantic Resonance | Amas Core OS</p>
+        <h1 class="font-serif-luxury text-8xl md:text-[10rem] lg:text-[12rem] text-slate-900 leading-[0.8] tracking-tighter font-bold italic select-none">Personal Notebook</h1>
+        
+        <!-- Notebook Navigation Tabs -->
+        <div class="flex justify-center gap-4 mt-8">
+            <button 
+                v-for="tab in [
+                    { id: 'all', label: 'All Entries' }, 
+                    { id: 'diary', label: 'Diary & Voice' }, 
+                    { id: 'todo', label: 'Tasks & Schedule' },
+                    { id: 'memo', label: 'Memos' },
+                    { id: 'features', label: 'Features' }
+                ]" 
+                :key="tab.id"
+                @click="setFilter(tab.id)"
+                :class="['px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all', 
+                         localFilter === tab.id ? 'bg-slate-900 text-white shadow-lg scale-105' : 'bg-white text-slate-400 hover:bg-slate-100']"
+            >
+                {{ tab.label }}
+            </button>
+        </div>
+
       </header>
 
+      <!-- DIARY INPUT SECTION -->
+      <section v-if="showDiaryInput" id="diary-input-section" class="space-y-6 relative z-[50]">
+          <div class="bg-white/80 p-8 rounded-3xl shadow-sm border border-slate-100 backdrop-blur-md">
+              <h3 class="text-xl font-serif-luxury italic text-slate-900 mb-4 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                      <Sparkles :size="18" class="text-teal-500" />
+                      <span>Write in your Diary</span>
+                  </div>
+                  <span class="text-[10px] font-mono text-slate-400 tracking-widest">{{ diaryInput.length }} / 300</span>
+              </h3>
+              <textarea
+                  v-model="diaryInput"
+                  placeholder="Capture the essence of the moment..."
+                  maxlength="300"
+                  class="w-full h-32 p-6 rounded-xl border-none bg-[#fdfbf7] text-slate-800 font-serif resize-none transition-all shadow-inner focus:ring-0 text-lg leading-relaxed placeholder:text-slate-300 placeholder:italic"
+              ></textarea>
+              <div class="flex justify-end mt-4">
+                  <button 
+                  @click="saveDiaryEntry" 
+                  :disabled="!diaryInput.trim()"
+                  class="px-6 py-2 bg-slate-900 text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                  >
+                  Save Entry
+                  </button>
+              </div>
+          </div>
+      </section>
+
       <!-- VISUAL DIARY LOG -->
-      <section v-if="entries.length > 0" class="space-y-12">
+      <section v-if="filteredEntries.length > 0" class="space-y-12">
         <div class="flex items-center gap-6 px-4">
           <div class="h-[1px] flex-1 bg-slate-200/50" />
-          <span class="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Visual Diary Log</span>
+          <span class="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">{{ localFilter === 'all' ? 'Unified Timeline' : localFilter + ' Timeline' }}</span>
           <div class="h-[1px] flex-1 bg-slate-200/50" />
         </div>
         
         <div class="grid grid-cols-1 gap-12">
-          <div 
-            v-for="entry in entries" 
-            :key="entry.id" 
-            class="bg-white rounded-[3rem] border border-slate-100 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-2xl hover:-translate-y-2"
-          >
-            <div v-if="entry.metadata?.image" class="w-full lg:w-2/5 aspect-square lg:aspect-auto bg-slate-50 relative">
-              <img 
-                :src="entry.metadata.image" 
-                :alt="entry.title" 
-                class="w-full h-full object-cover"
-              />
-              <div class="absolute inset-0 bg-black/5" />
-            </div>
-            <div class="flex-1 p-10 md:p-16 space-y-8">
-              <div class="flex justify-between items-start">
-                <div class="space-y-2">
-                  <div class="flex items-center gap-3 mb-4">
-                    <ImageIcon :size="14" class="text-teal-500" />
-                    <span class="text-[9px] font-black uppercase tracking-widest text-teal-600">Verified Insight</span>
-                  </div>
-                  <h3 class="font-serif-luxury text-4xl md:text-5xl italic text-slate-900 font-semibold">{{ entry.title }}</h3>
-                </div>
-                <div class="flex flex-col items-end opacity-20">
-                  <Clock :size="18" />
-                  <span class="text-[10px] font-mono-light mt-2">
-                    {{ new Date(entry.timestamp).toLocaleDateString() }}
-                  </span>
-                </div>
+          <TransitionGroup name="list" tag="div" class="space-y-12">
+        <div 
+          v-for="entry in filteredEntries" 
+          :key="entry.id" 
+          class="bg-white rounded-[3rem] border border-slate-100 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-2xl hover:-translate-y-2 relative group"
+        >
+          <!-- FEATURE BUTTONS OVERLAY FOR FEATURES TAB -->
+          <div v-if="localFilter === 'features' && entry.id === filteredEntries[0]?.id" class="w-full p-10 bg-slate-50/50 border-b border-slate-100">
+             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+                <button @click="$emit('nav', 'oke')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-blue-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Activity :size="32" class="text-blue-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">OKE System</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Certifications</span>
+                </button>
+                
+                <button @click="$emit('action', 'video')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-teal-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Video :size="32" class="text-teal-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Video Bridge</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Resonance Call</span>
+                </button>
+                <button @click="$emit('nav', 'map')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-indigo-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <MapPin :size="32" class="text-indigo-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">AI Map</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Geographic Trace</span>
+                </button>
+                <button @click="$emit('action', 'finance')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-emerald-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Zap :size="32" class="text-emerald-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Fairy Vert</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Invisible Finance</span>
+                </button>
+                <button @click="$emit('action', 'recorder')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-red-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Feather :size="32" class="text-red-500 mb-4 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Recorder</span>
+                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">L0 Archive</span>
+                </button>
+             </div>
+          </div>
+              <!-- NEW BADGE FOR VOICE MEMO -->
+               <div v-if="entry.type === 'voice_memo' || entry.type === 'standard' && entry.title?.includes('Voice Memo')" class="absolute top-6 right-6 px-3 py-1 bg-red-500/10 text-red-600 rounded-full text-[9px] font-black uppercase tracking-widest z-10 flex items-center gap-2">
+                  <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  Audio Record
+              </div>
+
+              <div v-if="entry.metadata?.image" class="w-full lg:w-2/5 aspect-square lg:aspect-auto bg-slate-50 relative">
+                <img 
+                  :src="entry.metadata.image" 
+                  :alt="entry.title" 
+                  class="w-full h-full object-cover"
+                />
+                <div class="absolute inset-0 bg-black/5" />
               </div>
               
-              <div class="prose prose-md max-w-none text-slate-600 font-light leading-relaxed">
-                <MarkdownRenderer :content="entry.content" />
-              </div>
+              <div class="flex-1 p-10 md:p-16 space-y-8 flex flex-col justify-center">
+                <div class="flex justify-between items-start">
+                  <div class="space-y-4 max-w-[80%]">
+                    <!-- Date Header -->
+                    <div class="flex items-center gap-3">
+                        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                            {{ new Date(entry.timestamp).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
+                        </span>
+                        <span v-if="entry.type === 'voice_memo'" class="px-2 py-0.5 bg-red-50 text-red-500 text-[9px] font-bold uppercase rounded-full">Voice</span>
+                        <span v-else-if="entry.type === 'diary'" class="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-bold uppercase rounded-full">Journal</span>
+                        <span v-else-if="entry.type === 'scifi'" class="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold uppercase rounded-full">Briefing</span>
+                        <span v-else-if="entry.type === 'habit'" class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold uppercase rounded-full">Routine</span>
+                    </div>
+                    
+                    <h3 class="font-serif-luxury text-3xl md:text-4xl italic text-slate-900 leading-tight">
+                        {{ entry.title }}
+                    </h3>
+                  </div>
 
-              <!-- OKE Certification Card Integration -->
-              <div v-if="entry.metadata?.oke_facts" class="mt-12">
-                <OKECertificationCard 
-                  :facts="entry.metadata.oke_facts" 
-                  :cid="entry.metadata.certification_id"
-                  :amaneLink="entry.metadata.amane_link"
-                  :timestamp="new Date(entry.timestamp).toLocaleTimeString()"
-                />
-              </div>
+                  <!-- Actions -->
+                  <div class="flex items-center gap-2">
+                      <button 
+                        @click="openShareModal(entry)"
+                        class="px-4 py-2 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 hover:text-slate-800 transition-all active:scale-95"
+                        title="Share to Aether Map"
+                      >
+                          ▼ Discovery
+                      </button>
+                  </div>
+                </div>
+                
+                <!-- Transcription Block (Special styling for Voice Memos) -->
+                <div v-if="entry.metadata?.transcript" class="relative group/hash">
+                    <div class="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100/50">
+                        <p class="text-[10px] uppercase tracking-widest text-indigo-300 font-bold mb-2">Original Voice Transcript</p>
+                        <p class="font-serif text-lg md:text-xl text-slate-700 leading-relaxed italic">
+                            "{{ entry.metadata.transcript }}"
+                        </p>
+                    </div>
+                    <!-- TRUST HASH -->
+                    <div v-if="entry.metadata?.verification_hash" class="absolute -bottom-3 right-4 bg-white px-2 py-1 rounded-full border border-indigo-100 text-[8px] font-mono text-indigo-300 shadow-sm opacity-50 group-hover/hash:opacity-100 transition-opacity whitespace-nowrap">
+                        Verified Hash: {{ entry.metadata.verification_hash }}
+                    </div>
+                </div>
 
-              <div class="pt-8 border-t border-slate-50 flex gap-3">
-                <span class="text-[9px] font-bold text-slate-300 border border-slate-100 px-3 py-1 rounded-full uppercase tracking-widest">Amane Secretary v4.2</span>
-                <span class="text-[9px] font-bold text-slate-300 border border-slate-100 px-3 py-1 rounded-full uppercase tracking-widest">Vision Node Alpha</span>
+                <!-- Main Content / AI Summary / Diary Text -->
+                <div class="prose prose-lg max-w-none text-slate-600 font-serif leading-relaxed">
+                  <MarkdownRenderer :content="entry.content || ''" />
+                </div>
+  
+                <!-- OKE Certification Card Integration (Only for certified items) -->
+                <div v-if="entry.metadata?.oke_facts" class="mt-8 border-t border-slate-100 pt-8">
+                  <OKECertificationCard 
+                    :facts="entry.metadata.oke_facts" 
+                    :cid="entry.metadata.certification_id"
+                    :amaneLink="entry.metadata.amane_link"
+                    :timestamp="new Date(entry.timestamp).toLocaleTimeString()"
+                  />
+                </div>
+  
+                <!-- Footer (Only for System Logs) -->
+                <div v-if="!['voice_memo', 'diary'].includes(entry.type)" class="pt-8 border-t border-slate-50 flex gap-3 opacity-50">
+                  <span class="text-[9px] font-bold text-slate-300 border border-slate-100 px-3 py-1 rounded-full uppercase tracking-widest">Amane System</span>
+                </div>
               </div>
             </div>
-          </div>
+          </TransitionGroup>
         </div>
       </section>
       
@@ -161,5 +402,30 @@ const props = defineProps({
         </div>
       </footer>
     </div>
+
+    <MapShareModal 
+        v-if="showMapModal" 
+        :isLoading="isSharing"
+        @close="showMapModal = false"
+        @confirm="confirmShare"
+    />
   </div>
 </template>
+
+<style>
+/* Global styles for dynamic content */
+.prose a {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.5s ease;
+}
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(-30px);
+}
+</style>

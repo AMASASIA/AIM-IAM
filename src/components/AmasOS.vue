@@ -471,6 +471,12 @@ onUnmounted(() => {
             <span>Geo-Map</span>
         </button>
 
+        <!-- A2UI Demo Toggle -->
+        <button @click="showDemo = !showDemo" class="flex items-center gap-2.5 px-4 py-2 bg-pink-500/10 border border-pink-500/30 rounded-lg text-[11px] font-bold tracking-widest hover:bg-pink-500/20 transition-all text-pink-300 uppercase shadow-lg shadow-pink-500/5 group">
+            <Sparkles size="14" class="group-hover:spin transition-transform" />
+            <span>A2UI Sim</span>
+        </button>
+
         <!-- Dynamic Token/Status (Mock) -->
         <div class="hidden sm:flex flex-col items-end px-3 border-r border-white/10 h-8 justify-center mr-2">
             <span class="text-[10px] text-slate-500 font-mono uppercase leading-none">Protocol Integrity</span>

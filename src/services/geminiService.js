@@ -3,30 +3,37 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const INTENT_ROUTER_INSTRUCTION = `You are an AI Intent Router for the Amane Protocol.
 Analyze user input and determine their intent.
 
+SPECIAL TRIGGERS (High Priority):
+- "@Cal", "At Cal", "アットカル", "あとかる", "カレンダー" -> Triggers SCHEDULE_EVENT
+- "@amas", "At Amas", "アットアマス", "あとあます", "Memo", "Todo" -> Triggers TODO_TASK or NOTEBOOK_MEMO
+
 POSSIBLE INTENTS:
-1. "CONNECT_VIDEO" - User wants to start a video chat with someone (e.g., "田中さんとビデオチャット", "connect to John")
-2. "CONNECT_CHAT" - User wants to start a text chat (e.g., "山田さんにメッセージ")
-3. "ADD_CONTACT" - User wants to add a contact (e.g., "田中さんを連絡先に追加")
-4. "MESSAGE" - Normal message to send to current chat
-5. "NOTEBOOK_MEMO" - User wants to save a memo (e.g., "メモ: ...", "remember that...")
+1. "CONNECT_VIDEO" - User wants to start a video chat with someone.
+2. "CONNECT_CHAT" - User wants to start a text chat.
+3. "ADD_CONTACT" - User wants to add a contact.
+4. "MESSAGE" - Normal message to send to the current chat context.
+5. "NOTEBOOK_MEMO" - General memo, diary entry, or idea.
+6. "SCHEDULE_EVENT" - User mentions a date, time, meeting, or starts with "@Cal".
+7. "TODO_TASK" - User mentions a task, to-do, start with "@amas", or specific action items.
 
 OUTPUT FORMAT (JSON only):
 {
-  "intent": "CONNECT_VIDEO" | "CONNECT_CHAT" | "ADD_CONTACT" | "MESSAGE" | "NOTEBOOK_MEMO",
-  "target_person": "nickname or name (if applicable)",
-  "message": "the actual message content",
+  "intent": "CONNECT_VIDEO" | "CONNECT_CHAT" | "ADD_CONTACT" | "MESSAGE" | "NOTEBOOK_MEMO" | "SCHEDULE_EVENT" | "TODO_TASK",
+  "target_person": "nickname or name if applicable",
+  "message": "the core message content/title",
+  "start_time": "ISO 8601 string (e.g., 2024-10-27T10:00:00) if a time is detected. If ambiguous, use context or NULL.",
+  "end_time": "ISO 8601 string if detected. If only duration is implied, calculate it. Default to 1 hour after start.",
+  "details": "For schedule/todo: extracted location, or bullets. Summarize key points.",
   "confidence": 0.0-1.0
 }
 
 EXAMPLES:
-Input: "田中さんとビデオチャットしたい"
-Output: {"intent": "CONNECT_VIDEO", "target_person": "田中", "message": "", "confidence": 0.95}
+Input: "@Cal 明日の10時に田村さんと会議" (Assume current is 2024-10-26)
+Output: {"intent": "SCHEDULE_EVENT", "message": "田村さんと会議", "start_time": "2024-10-27T10:00:00", "end_time": "2024-10-27T11:00:00", "details": "参加者: 田村さん", "confidence": 0.99}
 
-Input: "Hello, how are you?"
-Output: {"intent": "MESSAGE", "target_person": null, "message": "Hello, how are you?", "confidence": 1.0}
-
-Input: "山田さんを連絡先に追加、Threads IDは yamada123"
-Output: {"intent": "ADD_CONTACT", "target_person": "山田", "message": "Threads IDは yamada123", "confidence": 0.9}`;
+Input: "@amas 牛乳を買う"
+Output: {"intent": "TODO_TASK", "target_person": null, "message": "タスクリスト", "details": "- 牛乳を買う", "confidence": 0.99}
+`;
 
 const KERNEL_ARCHITECT_INSTRUCTION = `You are the INTENT ARCHITECT of the Amane Protocol.
 Operating on Amane protocol and SSM (State Space Model) Logic.
@@ -58,7 +65,7 @@ const withRetry = async (fn, retries = 3, delay = 1000) => {
 
 // Initialize Gemini
 const getApiKey = () => {
-    return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY || '';
+    return import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyCiLO-pbMChwMe3vIYyA7ZYrFPolOHNWWw";
 };
 
 export const createKernelSession = (history = []) => {
@@ -86,14 +93,100 @@ export const createKernelSession = (history = []) => {
 };
 
 // NEW: Intent Analysis for Voice Commands
+// NEW: Intent Analysis for Voice Commands
+// NEW: Intent Analysis for Voice Commands
 export const analyzeIntent = async (userInput) => {
+    // Normalize input: Full-width @ to half-width, remove extra spaces
+    const normalizedInput = userInput.replace(/＠/g, '@').replace(/　/g, ' ').trim();
+    const lowerInput = normalizedInput.toLowerCase();
+
+    // 1. Prioritize Local Keyword Detection (Faster & More Reliable)
+
+    // 1.1 Google Calendar / Schedule triggers
+    if (lowerInput.match(/(?:[\/@＠]+)cal/) || lowerInput.includes('schedule') || lowerInput.includes('meeting') || lowerInput.includes('カレンダー') || lowerInput.includes('予定') || lowerInput.includes('会議')) {
+        const message = normalizedInput.replace(/(?:[\/@＠]+)cal|schedule|meeting|カレンダー|予定|会議/gi, '').trim() || 'New Schedule';
+        return {
+            intent: 'SCHEDULE_EVENT',
+            target_person: null,
+            message: message,
+            details: 'Detected via keyword',
+            confidence: 1.0
+        };
+    }
+
+    // 1.2 Task / Todo / Notebook triggers
+    if (lowerInput.match(/(?:[\/@＠]+)amas/) || lowerInput.includes('todo') || lowerInput.includes('task') || lowerInput.includes('タスク') || lowerInput.includes('memo') || lowerInput.includes('メモ')) {
+        const message = normalizedInput.replace(/(?:[\/@＠]+)amas|todo|task|タスク|memo|メモ/gi, '').trim() || 'New Task';
+        return {
+            intent: 'TODO_TASK',
+            target_person: null,
+            message: message,
+            details: 'Detected via keyword',
+            confidence: 1.0
+        };
+    }
+
+    // 1.3 Morning Briefing / Start Day triggers
+    if (lowerInput.includes('start') || lowerInput.includes('morning') || lowerInput.includes('briefing') || lowerInput.includes('おはよう') || lowerInput.includes('スタート') || lowerInput.includes('今日')) {
+        return {
+            intent: 'START_DAY',
+            target_person: null,
+            message: 'All-in-One Daily Briefing',
+            details: 'Initiating AMAS Secretary Protocol...',
+            confidence: 1.0
+        };
+    }
+
+    // 1.4 Routine / Habit triggers
+    if (lowerInput.includes('routine') || lowerInput.includes('habit') || lowerInput.includes('ルーティン') || lowerInput.includes('習慣')) {
+        const message = normalizedInput.replace(/routine|habit|ルーティン|習慣/gi, '').trim() || 'New Routine';
+        return {
+            intent: 'ADD_ROUTINE',
+            target_person: null,
+            message: message,
+            details: 'Habit Formation Protocol',
+            confidence: 1.0
+        };
+    }
+
+    // 1.5 Video connection triggers
+    if (lowerInput.includes('video') || lowerInput.includes('ビデオ') || lowerInput.includes('call') || lowerInput.includes('通話')) {
+        return {
+            intent: 'CONNECT_VIDEO',
+            target_person: null,
+            message: userInput,
+            confidence: 0.9
+        };
+    }
+
+    // 1.6 Navigation triggers (Show Diary, Show Tasks, etc.)
+    if (lowerInput.match(/show|open|go to|見せて|開いて|移動/)) {
+        if (lowerInput.match(/diary|journal|日記/)) {
+            return { intent: 'NAVIGATE', target_person: null, message: 'diary', confidence: 1.0 };
+        }
+        if (lowerInput.match(/memo|note|メモ/)) {
+            return { intent: 'NAVIGATE', target_person: null, message: 'memo', confidence: 1.0 };
+        }
+        if (lowerInput.match(/task|todo|schedule|calendar|タスク|予定|カレンダー/)) {
+            return { intent: 'NAVIGATE', target_person: null, message: 'task', confidence: 1.0 };
+        }
+    }
+
+    // 1.7 Deployment triggers
+    if (lowerInput.includes('deploy') || lowerInput.includes('デプロイ') || lowerInput.includes('launch') || lowerInput.includes('assembly')) {
+        return {
+            intent: 'DEPLOYMENT',
+            target_person: null,
+            message: 'Amane Deployment Protocol',
+            details: 'Initializing 1-Click Assembly...',
+            confidence: 1.0
+        };
+    }
+
     const apiKey = getApiKey();
     if (!apiKey) {
-        // Mock mode: simple keyword detection
-        if (userInput.includes('ビデオ') || userInput.includes('video')) {
-            return { intent: 'CONNECT_VIDEO', target_person: null, message: userInput, confidence: 0.5 };
-        }
-        return { intent: 'MESSAGE', target_person: null, message: userInput, confidence: 1.0 };
+        // Default to Message/Memo in Mock Mode if no keywords matched
+        return { intent: 'NOTEBOOK_MEMO', target_person: null, message: userInput, confidence: 0.5 };
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -107,12 +200,24 @@ export const analyzeIntent = async (userInput) => {
     });
 
     return withRetry(async () => {
-        const result = await model.generateContent(userInput);
+        const result = await model.generateContent(`${userInput}\n\n[Current System Time: ${new Date().toLocaleString()}]`);
         const response = await result.response;
         try {
-            return JSON.parse(response.text());
+            let text = response.text();
+            // Clean markdown code blocks if present
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(text);
         } catch (e) {
-            return { intent: 'MESSAGE', target_person: null, message: userInput, confidence: 0.5 };
+            console.error("Intent Analysis Parsing Error:", e);
+            // Graceful fallback including the original message
+            return {
+                intent: 'NOTEBOOK_MEMO',
+                target_person: null,
+                message: userInput,
+                original_transcript: userInput,
+                details: 'AI Intent Analysis failed, saved as simple memo.',
+                confidence: 0.5
+            };
         }
     });
 };
@@ -190,11 +295,17 @@ Determine if this was "AUTONOMOUS", "IMPULSIVE", or "COERCED". Return JSON only.
 export const analyzeImage = async (base64Data, mimeType) => {
     const apiKey = getApiKey();
     if (!apiKey) {
-        return "Visual analysis not available in demo mode.";
+        return {
+            notebookContent: "Visual analysis not available in demo mode.",
+            gravityNodes: []
+        };
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        generationConfig: { responseMimeType: "application/json" }
+    });
 
     const imagePart = {
         inlineData: {
@@ -204,30 +315,36 @@ export const analyzeImage = async (base64Data, mimeType) => {
     };
 
     const textPart = {
-        text: `You are the Antigravity Vision-Agent. Analyze this asset for OKE Certification.
-        
-        1. Frame-by-Frame Inspection: Examine material luster, texture continuity, and OKE Grade standards.
-        2. Audio-Truth Correlation: If specific wear is mentioned, identify the visual evidence coordinates.
-        3. Automatic Copywriting: Generate a luxury product description focused on its "history and value" (Luxury Brand tone like ZARA Home or LVMH), not just specs.
-        
-        Output format:
-        # [Product Name]
-        **OKE Grade: [X.X/10.0]**
-        
-        ## Insighted Value
-        [Luxury Copywriting Paragraph]
-        
-        ## Atomic Facts
-        - [Fact 1]
-        - [Fact 2]
-        
-        Interpret the mood and significance for the user's Secret Notebook. Output Markdown formatted text only.`
+        text: `You are the Antigravity Vision-Agent. Analyze this asset to extract both Semantic Depth (for Notebook) and Gravitational Topology (for AI Map).
+
+        1. **Visual Semantics**: Examine material, lighting, and cultural signifiers.
+        2. **Luxury Copywriting**: Generate a "ZARA Home" or "LVMH" style description.
+        3. **Gravity Extraction**: Identify 3-5 key concepts (nodes) that anchor this image in the user's life.
+
+        Output JSON structure:
+        {
+            "notebookContent": "# [Product Name]\n**OKE Grade: [X.X/10.0]**\n\n## Insighted Value\n[Luxury Description]\n\n## Atomic Facts\n- [Fact 1]\n- [Fact 2]",
+            "gravityNodes": [
+                { "id": "node-1", "label": "Concept Name", "mass": 0.8, "type": "material|emotion|memory" }
+            ],
+            "auraColor": "hex code (e.g. #FFD700)"
+        }`
     };
 
     return withRetry(async () => {
-        const result = await model.generateContent([imagePart, textPart]);
-        const response = await result.response;
-        return response.text() || "Vision analysis complete.";
+        try {
+            const result = await model.generateContent([imagePart, textPart]);
+            const response = await result.response;
+            return JSON.parse(response.text());
+        } catch (e) {
+            console.error("Gemini Vision Error:", e);
+            // Fallback for valid non-JSON return or error
+            return {
+                notebookContent: "Visual Analysis halted. Preserving raw visual data.",
+                gravityNodes: [],
+                auraColor: "#FFFFFF"
+            };
+        }
     });
 };
 

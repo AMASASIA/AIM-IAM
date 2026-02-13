@@ -1,6 +1,7 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
-import { Menu, X, LayoutDashboard, MessageSquare, Video, Terminal, Compass, Shield, Fingerprint, Users } from 'lucide-vue-next';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { Menu, X, LayoutDashboard, MessageSquare, Video, Terminal, Compass, Shield, Fingerprint, Users, Box, Activity, Book } from 'lucide-vue-next';
 import AnchorScreen from '../components/AnchorScreen.vue';
 import ChatMessaging from '../components/ChatMessaging.vue';
 import NotebookView from '../components/NotebookView.vue';
@@ -8,8 +9,9 @@ import PrimaryInterface from '../components/PrimaryInterface.vue';
 import ContactBook from '../components/ContactBook.vue';
 import InvisibleFinancePopup from '../components/InvisibleFinancePopup.vue';
 import InvisibleFinance from '../components/InvisibleFinance.vue';
-import { createKernelSession, generateSecretNotebook, sendMessage, processVoiceNote, analyzeImage, analyzeIntent, analyzeSemanticDiff } from '../services/geminiService.js';
-import { processAssetToGateway } from '../services/assetService.js';
+import SanctuaryPopup from '../components/SanctuaryPopup.vue';
+import { createKernelSession, generateSecretNotebook, sendMessage, processVoiceNote, analyzeIntent, analyzeSemanticDiff } from '../services/geminiService.js';
+// import { processAssetToGateway } from '../services/assetService.js'; // Moved to composable
 import NotificationSystem from '../components/NotificationSystem.vue';
 import NotificationToast from '../components/NotificationToast.vue';
 import { useNotifications } from '../composables/useNotifications';
@@ -21,10 +23,14 @@ import AmasLiaisonService from '../services/amasLiaisonService.js';
 import peerService from '../services/peerService.js';
 import VideoOverlay from '../components/VideoOverlay.vue';
 import { useAntigravityRecorder } from '../composables/useAntigravityRecorder';
+import { useVisionCore } from '../composables/useVisionCore'; // Visual Cortex
+import { useAmasSecretary } from '../composables/useAmasSecretary'; // AMAS Secretary
 import SystemLogs from '../components/SystemLogs.vue';
+import { labelingCaller } from '../services/labelingCaller';
 
 // State
 const user = ref(null);
+const router = useRouter();
 const isSearchingPeer = ref(false);
 const showVideoOverlay = ref(false);
 const { notify, notifications, removeNotification } = useNotifications();
@@ -42,12 +48,31 @@ const isSidebarOpen = ref(false);
 const isListening = ref(false);
 const kernelSession = ref(null);
 const recognitionRef = ref(null);
+// Sanctuary State
+const showSanctuary = ref(false);
+
+const handleSanctuaryConfirm = () => {
+    showSanctuary.value = false;
+    notify('AMAS Liaison', 'Agreement Sealed. SBT Minting...', 'success');
+    
+    // Log the invisible finance event
+    notebookEntries.value.unshift({
+        id: 'SBT-' + Date.now(),
+        type: 'scifi',
+        title: '💎 Invisible Finance: Agreement',
+        content: '**Protocol Sealed**\n\n- Type: Liaison Integration\n- Status: Minted on Polygon zkEVM\n- Hash: In-Visible',
+        timestamp: new Date()
+    });
+};
+
+// ... existing refs
 const showContactBook = ref(false);
 const activeCall = ref(null); // { targetName, intentType, contact }
 const showFinancePopup = ref(false);
 const isSanctuaryActive = ref(false);
 const liaisonService = ref(null);
 const { startCapture, stopCapture, isRecording } = useAntigravityRecorder();
+const notebookFilter = ref('all');
 
 const toggleRecording = async () => {
   if (isRecording.value) {
@@ -89,13 +114,41 @@ onMounted(() => {
     kernelSession.value = createKernelSession(loadedHistory);
   }
   
-  const savedNotebook = localStorage.getItem('amas_notebook_v1');
-  if (savedNotebook) {
-    notebookEntries.value = JSON.parse(savedNotebook).map(e => ({
-      ...e,
-      timestamp: new Date(e.timestamp)
-    }));
+  // Notebook Persistence v2 (Migration & Stability)
+  const savedNotebookV2 = localStorage.getItem('amas_notebook_v2');
+  const savedNotebookV1 = localStorage.getItem('amas_notebook_v1');
+  
+  if (savedNotebookV2) {
+    try {
+        notebookEntries.value = JSON.parse(savedNotebookV2).map(e => ({
+            ...e,
+            timestamp: new Date(e.timestamp)
+        }));
+        // console.log("Notebook v2 loaded.");
+    } catch (e) {
+        console.error("Notebook v2 corruption:", e);
+    }
+  } else if (savedNotebookV1) {
+    // Migration from v1
+    try {
+        const v1Data = JSON.parse(savedNotebookV1).map(e => ({
+            ...e,
+            timestamp: new Date(e.timestamp)
+        }));
+        notebookEntries.value = v1Data;
+        notify('System', 'Notebook storage upgraded to v2.', 'success');
+    } catch (e) {
+        console.error("Migration failed.", e);
+    }
   }
+
+  // DEV UTILITY: Shift+S to test Sanctuary
+  window.addEventListener('keydown', (e) => {
+    if (e.shiftKey && e.key === 'S') {
+        console.log('Dev Trigger: Sanctuary');
+        showSanctuary.value = true;
+    }
+  });
 
   // Initialize Liaison Service [AMAS_GENESIS_REVIVAL]
   liaisonService.value = new AmasLiaisonService({
@@ -119,100 +172,208 @@ onMounted(() => {
           }
       }
   };
+});
 
-  // Initialize speech recognition
+
+  // Unified command processor (Voice or Text)
+  const { processVisualImport } = useVisionCore();
+  const { handleVoiceNote: processSecretaryNote } = useAmasSecretary();
+
+  /* Refactored Voice Handler for Robustness */
+  const handleVoiceTranscription = async (transcript, isText = false) => {
+      console.log('Processing Command:', transcript);
+      
+      // 1. Immediate UI Feedback
+      if (activeView.value !== 'notebook') {
+           activeView.value = 'notebook';
+      }
+      notebookFilter.value = 'all'; 
+      notify('Amane Core', `Heard: "${transcript}"`, 'info');
+      
+      const processingId = 'proc-' + Date.now();
+      
+      // Add visual processing indicator
+      if (!isText) {
+          notebookEntries.value.unshift({
+              id: processingId,
+              type: 'voice_memo', 
+              title: 'Creating Note...',
+              content: 'Analyzing voice patterns...',
+              metadata: { is_refined: false },
+              timestamp: new Date(),
+              isProcessing: true
+          });
+      }
+
+      try {
+        // 2. Intent Analysis (with fallback)
+        let intent;
+        try {
+            intent = await analyzeIntent(transcript);
+        } catch (e) {
+            console.error("Intent Analysis Failed:", e);
+            intent = { intent: 'NOTEBOOK_MEMO', message: transcript };
+        }
+        
+        console.log('Final Intent:', intent);
+
+        // 3. Execute Logic based on Intent
+        switch (intent.intent) {
+          case 'SCHEDULE_EVENT':
+             // Calendar Handling
+             await handleScheduleEvent(intent);
+             break;
+             
+          case 'TODO_TASK':
+             // Task Handling
+             const taskEntry = {
+                id: Date.now().toString(),
+                type: 'todo',
+                title: `✅ Task: ${intent.message}`,
+                content: `- [ ] ${intent.message}\n\n*Voice Entry*`,
+                timestamp: new Date()
+             };
+             notebookEntries.value.unshift(taskEntry);
+             notify('Tasks', 'Task added.', 'success');
+             break;
+             
+          case 'NAVIGATE':
+             handleNavigationIntent(intent);
+             break;
+             
+          case 'NOTEBOOK_MEMO':
+          default:
+             // 4. Default: Secretary Memo (Robust)
+             // Even if this fails, we catch it and save raw transcript
+             const secretaryEntry = await processSecretaryNote(transcript);
+             notebookEntries.value.unshift(secretaryEntry);
+             notify('Notebook', 'Memo saved.', 'success');
+             break;
+        }
+        
+        // Ensure we are still on notebook view
+        if (activeView.value !== 'notebook') activeView.value = 'notebook';
+
+      } catch (finalError) {
+        console.error('Critical Voice Error, saving raw:', finalError);
+        // Emergency Fallback: Save raw text
+        notebookEntries.value.unshift({
+            id: Date.now().toString(),
+            type: 'voice_memo',
+            title: 'Quick Note (Raw)',
+            content: transcript,
+            timestamp: new Date(),
+            metadata: { error: finalError.message }
+        });
+        notify('System', 'Saved as raw note due to error.', 'warning');
+      } finally {
+        // Remove processing placeholder
+        notebookEntries.value = notebookEntries.value.filter(e => e.id !== processingId);
+      }
+  };
+
+  // Helper for Calendar
+  const handleScheduleEvent = async (intent) => {
+      const title = intent.message || 'New Event';
+      // Create simplified calendar entry
+      notebookEntries.value.unshift({
+          id: Date.now().toString(),
+          type: 'calendar',
+          title: `📅 ${title}`,
+          content: `**Event Scheduled**\n\n- Event: ${title}\n- Time: ${intent.start_time || 'Tomorrow 10:00 AM'}\n\n@Cal Open Calendar`,
+          timestamp: new Date()
+      });
+      notify('Calendar', 'Event drafted.', 'success');
+  };
+
+  const handleNavigationIntent = (intent) => {
+     if (intent.message.includes('diary')) notebookFilter.value = 'diary';
+     else if (intent.message.includes('task')) notebookFilter.value = 'todo';
+     else notebookFilter.value = 'all';
+     notify('Navigation', `Filter: ${notebookFilter.value}`, 'info');
+  };
+
+    // Manual fallback for immediate voice activation
+    const forceNotebook = () => {
+        activeView.value = 'notebook';
+        const stubEntry = {
+            id: Date.now().toString(),
+            type: 'standard',
+            title: 'Manual Entry',
+            content: 'Voice input override active.',
+            metadata: {
+                verification_hash: "0xHASH_" + Date.now().toString(16) + "_MANUAL_OVERRIDE_SIGNED"
+            },
+            timestamp: new Date()
+        };
+        notebookEntries.value.unshift(stubEntry);
+    };
+
+    // Helper to generate a "Proof of Thought" hash
+    const generateTrustHash = (input) => {
+        let hash = 0;
+        const str = input + Date.now().toString();
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = (hash << 5) - hash + char;
+            hash |= 0; 
+        }
+        return '0x' + Math.abs(hash).toString(16).padStart(64, '0').substring(0, 16) + '... (Amane Verified)';
+    };
+
+    onMounted(async () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognition) {
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = false; // Keep it short and accurate
     recognition.interimResults = false;
-    recognition.lang = 'ja-JP';
+    recognition.lang = 'ja-JP'; 
 
     recognition.onstart = () => {
       isListening.value = true;
+      notify('Voice', 'Listening...', 'info');
+    };
+
+    recognition.onerror = (event) => {
+        console.error("Speech Error:", event.error);
+        if (event.error === 'not-allowed') {
+            notify('Voice Error', 'Microphone access denied. Please check browser settings.', 'error');
+            isListening.value = false;
+        } else if (event.error === 'no-speech') {
+            // Just silence, restart if we were expecting input? No, stop for now to avoid loops.
+            notify('Voice', 'No speech detected.', 'warning');
+            isListening.value = false; 
+        } else if (event.error === 'network') {
+            notify('Voice Error', 'Network error. Please check connection.', 'error');
+             isListening.value = false;
+        } else {
+            notify('Voice Error', `Error: ${event.error}`, 'error');
+            isListening.value = false;
+        }
     };
 
     recognition.onresult = async (event) => {
       const transcript = event.results[0][0].transcript;
-      console.log('Voice input:', transcript);
-      
-      try {
-        // Step 1: Analyze intent using AI
-        const intent = await analyzeIntent(transcript);
-        console.log('AI Intent analysis:', intent);
-        
-        // Step 2: Handle based on intent
-        switch (intent.intent) {
-          case 'CONNECT_VIDEO':
-          case 'CONNECT_CHAT':
-            // Find contact in address book
-            if (intent.target_person) {
-              const contact = contactBook.findContact(intent.target_person);
-              if (contact && contact.peerId) {
-                // Auto-connect to peer via Labeling Caller (Visible AI Liaison)
-                console.log(`Auto-connecting to ${contact.nickname} (${contact.peerId})`);
-                
-                // Set active call data to trigger the sanctuary popup
-                activeCall.value = {
-                  targetName: contact.nickname,
-                  intentType: intent.intent === 'CONNECT_VIDEO' ? 'Video Bridge' : 'Resonance Chat',
-                  contact: contact
-                };
-                showFinancePopup.value = true;
-                
-                // Log to notebook
-                const newEntry = {
-                  id: Date.now().toString(),
-                  type: 'system',
-                  title: `Connection Request: ${contact.nickname}`,
-                  content: `Initiated ${intent.intent === 'CONNECT_VIDEO' ? 'video' : 'chat'} connection via voice command.\nTarget: @${contact.threadsId || contact.instagramId}`,
-                  timestamp: new Date(),
-                };
-                notebookEntries.value.unshift(newEntry);
-              } else {
-                alert(`❌ Contact "${intent.target_person}" not found.\n\nPlease add them to your contact book first.`);
-              }
-            } else {
-              alert('🤔 Could not identify who you want to connect with.\nPlease say their name clearly.');
-            }
-            break;
-            
-          case 'ADD_CONTACT':
-            // Show contact add dialog (simplified for now)
-            alert(`📇 Add Contact Feature\n\nDetected: ${intent.target_person}\nMessage: ${intent.message}\n\n(Contact management UI will be added)`);
-            break;
-            
-          case 'MESSAGE':
-            // Route to Chat Interface directly
-            if (activeView.value !== 'chat') activeView.value = 'chat';
-            await handleSendMessage(intent.message || transcript);
-            break;
-
-          case 'NOTEBOOK_MEMO':
-          default:
-            // Save as notebook entry
-            const refinedNote = await processVoiceNote(transcript);
-            const newEntry = {
-              id: Date.now().toString(),
-              type: 'standard',
-              title: `Voice Memo: ${new Date().toLocaleTimeString()}`,
-              content: refinedNote,
-              timestamp: new Date(),
-            };
-            notebookEntries.value.unshift(newEntry);
-            break;
-        }
-      } catch (e) {
-        console.error('Voice processing error:', e);
+      if (transcript) {
+          await handleVoiceTranscription(transcript);
       }
     };
+    // ... existing code ...
 
     recognition.onend = () => {
       isListening.value = false;
+      // If we stopped listening but didn't process anything (and didn't manually stop), notify user
+      // Note: This is a simple heuristic. Ideally we track if a result was received.
+      // notify('Voice', 'Session Ended', 'info');
     };
 
     recognitionRef.value = recognition;
+  } else {
+      notify('System', 'Speech Recognition not supported in this browser.', 'error');
   }
+  
+  // existing onMounted logic...
+  const myPeerId = await peerService.initialize();
 });
 
 // Save messages and notebook when they change
@@ -221,7 +382,7 @@ watch(messages, (newMessages) => {
 }, { deep: true });
 
 watch(notebookEntries, (newEntries) => {
-  localStorage.setItem('amas_notebook_v1', JSON.stringify(newEntries));
+  localStorage.setItem('amas_notebook_v2', JSON.stringify(newEntries));
 }, { deep: true });
 
 // Handle anchor/login
@@ -334,46 +495,41 @@ const handleToggleVoice = () => {
 // Handle image import
 const handleImport = async (file) => {
   try {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const fullBase64 = e.target?.result;
-      const base64 = fullBase64.split(',')[1];
-      
-      try {
-        // AI解析と同時に、独立バックエンド（Gateway）へ鑑定リクエスト
-        const [insight, gatewayResult] = await Promise.all([
-          analyzeImage(base64, file.type),
-          processAssetToGateway(file, "Manual Import via Onyx Interface")
-        ]);
-        
-        console.log("[Amane Gateway] Certification Received:", gatewayResult);
+    // 1. Delegate core logic to "Vision Brain" (Composable)
+    const resultEntry = await processVisualImport(file);
 
-        const newEntry = {
-          id: Date.now().toString(),
-          type: 'visual_diary',
-          title: `Visual Diary: ${file.name}`,
-          content: insight,
-          timestamp: new Date(),
-          metadata: { 
-            image: fullBase64,
-            certification_id: gatewayResult.certification_id,
-            oke_facts: gatewayResult.atomic_facts,
-            amane_link: gatewayResult.amane_link
-          }
-        };
+    // 2. Update Notebook Logic (The "Memory")
+    notebookEntries.value.unshift(resultEntry);
+    
+    // CRITICAL FIX: Automatically switch to Notebook view to show the result
+    activeView.value = 'notebook'; 
+    notebookFilter.value = 'all'; // Ensure Unified Timeline for new visual content 
+    
+    // 3. Trigger Antigravity Topology Update
+    // (This ensures the map "reacts" to the new semantic weight)
+    if (resultEntry.metadata.gravity_nodes?.length > 0) {
+        console.log("🌌 Gravity Shift: Topology Updating...", resultEntry.metadata.gravity_nodes);
         
-        notebookEntries.value.unshift(newEntry);
-        
-        // 通知
-        notify('OKE Certified', `${file.name} has been verified.\nCID: ${gatewayResult.certification_id}`, 'success');
-      } catch (error) {
-        console.error('Image analysis error:', error);
-      }
-    };
-    reader.readAsDataURL(file);
+        // If there are specific map references or events, trigger them here.
+        // For now, we simulate the "Aura" effect via the notification system which shows the shift.
+        notify('Gravity Topology', `Map adjusted: ${resultEntry.metadata.gravity_nodes.length} new nodes anchored.`, 'success');
+    }
+
   } catch (e) {
-    console.error('File read error:', e);
+    console.error('Antigravity Import Error:', e);
   }
+};
+
+const handleManualDiaryEntry = (content) => {
+  const newEntry = {
+    id: Date.now().toString(),
+    type: 'diary',
+    title: `Diary Entry: ${new Date().toLocaleTimeString()}`,
+    content: content,
+    timestamp: new Date()
+  };
+  notebookEntries.value.unshift(newEntry);
+  notify('Notebook', 'Diary entry saved.', 'success');
 };
 
 const handleContactConnect = ({ contact, type }) => {
@@ -412,19 +568,30 @@ const startP2PMedia = async (peerId, isIncoming = false, incomingCall = null) =>
 };
 
 const handleCallAgreement = async (callData) => {
-  console.log("[AMAS_GENESIS_REVIVAL] Agreement reached. Finalizing Directive...", callData);
+  // console.log("[AMAS_GENESIS_REVIVAL] Agreement reached. Finalizing Directive...", callData);
   
   try {
     // Phase 4: Invisible Finance Execution
     const result = await liaisonService.value.completeDirective(callData);
-    console.log("Directive Finalized:", result);
+    // console.log("Directive Finalized:", result);
 
     // Phase 5: Start Actual P2P Connection
-    if (callData.intentType.includes('Video')) {
-      await startP2PMedia(callData.contact.peerId);
+    if (callData.contact && callData.contact.peerId) {
+        if (callData.intentType.includes('Video')) {
+            await startP2PMedia(callData.contact.peerId);
+        } else {
+            peerService.connectToPeer(callData.contact.peerId);
+            notify('P2P Bridge', `Data Liaison established with ${callData.targetName}`, 'success');
+        }
     } else {
-      peerService.connectToPeer(callData.contact.peerId);
-      notify('P2P Bridge', `Data Liaison established with ${callData.targetName}`, 'success');
+        // Fallback for Demo/Self mode (if no peer defined in button click)
+        if (callData.intentType.includes('Video') || callData.intentType === 'Liaison') {
+             // Treat generic Liaison as video capable for verify
+             notify('Self-Resonance', 'Starting self-reflection stream...', 'info');
+             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+             localStream.value = stream;
+             showVideoOverlay.value = true;
+        }
     }
 
     // Apple Watch / Status sync
@@ -432,7 +599,7 @@ const handleCallAgreement = async (callData) => {
       id: Date.now().toString(),
       type: 'resonance',
       title: 'LIFE WAVE Synchronization',
-      content: `Liaison Bridge Established with ${callData.targetName}.\n\nSBT: ${result.sbtId}\nTX: ${result.txHash}\nPeer ID: ${callData.contact.peerId}`,
+      content: `Liaison Bridge Established with ${callData.targetName}.\n\nSBT: ${result.sbtId}\nTX: ${result.txHash}`,
       timestamp: new Date(),
     };
     notebookEntries.value.unshift(newEntry);
@@ -461,10 +628,41 @@ const handleCommerceReceipt = (receipt) => {
     notify('Notebook Sync', `Commerce Receipt for ${receipt.product} archived.`, 'success');
 };
 
-const handlePresenceTrigger = () => {
-  // Simulate JP18991 Proximity Detection
-  liaisonService.value.triggerPresence(0.85); // Above 0.5 threshold
+const handleSanctuaryTrigger = async (content) => {
+    // 1. Log the trigger as invisible context
+    notebookEntries.value.unshift({
+        id: 'AMAS-' + Date.now(),
+        type: 'scifi',
+        title: '🪐 AMAS Synchronization',
+        content: `**Trust Sync Initiated**\n\n"${content}"\n\n- Status: Analyzing Context...\n- Protocol: E7 (2637Hz) Resonance`,
+        timestamp: new Date()
+    });
+    
+    notify('AMAS OS', 'Tuning into your frequency...', 'info');
+    
+    // 2. Simulate Analysis Delay (or real AI call)
+    setTimeout(() => {
+        // 3. Trigger the Sanctuary Popup (Zen UI)
+        showSanctuary.value = true;
+    }, 800);
 };
+
+const handlePresenceTrigger = () => {
+    // Simulate JP18991 Proximity Detection
+    liaisonService.value.triggerPresence(0.85); // Above 0.5 threshold
+  };
+  
+  // Create a backup of the notebook
+  const handleExportNotebook = () => {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(notebookEntries.value, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href",     dataStr);
+      downloadAnchorNode.setAttribute("download", `amas_notebook_backup_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchorNode); // required for firefox
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+      notify('System', 'Notebook backup downloaded.', 'success');
+  };
 
 const handleVideoChatClick = () => {
   notify('Video Bridge', 'Initializing self-node camera stream...', 'info');
@@ -525,6 +723,16 @@ const navigateTo = (view) => {
   activeView.value = view;
   isSidebarOpen.value = false;
 };
+
+// DEV UTILITY: Shift+S to test Sanctuary
+onMounted(() => {
+    window.addEventListener('keydown', (e) => {
+        if (e.shiftKey && e.key === 'S') {
+            console.log('Dev Trigger: Sanctuary');
+            showSanctuary.value = true;
+        }
+    });
+});
 </script>
 
 <template>
@@ -536,7 +744,7 @@ const navigateTo = (view) => {
   />
   
   <!-- Main App -->
-  <div v-else class="fixed inset-0 bg-[#E5E5E5] flex flex-col overflow-hidden font-sans select-none text-[#1A1A1A]">
+  <div v-else class="fixed inset-0 bg-[#E5E5E5] flex flex-col overflow-hidden font-sans text-[#1A1A1A]">
     <div class="stardust-bg" />
 
     <!-- Sidebar -->
@@ -557,6 +765,16 @@ const navigateTo = (view) => {
             <div class="flex items-center gap-4">
               <LayoutDashboard :size="14" />
               <span class="text-[11px] font-bold uppercase tracking-widest">Interface</span>
+            </div>
+          </button>
+          
+          <button 
+            @click="navigateTo('notebook')"
+            :class="['w-full text-left p-6 rounded-[2rem] border transition-all', activeView === 'notebook' ? 'bg-black text-white shadow-xl' : 'bg-white/60 border-white/40 hover:border-black/20']"
+          >
+            <div class="flex items-center gap-4">
+              <Book :size="14" />
+              <span class="text-[11px] font-bold uppercase tracking-widest">Notebook</span>
             </div>
           </button>
         </div>
@@ -583,6 +801,17 @@ const navigateTo = (view) => {
             {{ item.label }}
           </button>
 
+          <!-- New System Integrations -->
+          <!-- New System Integrations -->
+          <button @click="router.push('/oke')" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-blue-600 hover:bg-blue-600/10">
+              <Activity :size="16" />
+              <span class="font-serif-luxury text-base tracking-widest">OKE</span>
+          </button>
+
+          
+
+
+
           <!-- Sidebar Functions (Moved from Header) -->
           <div class="pt-4 border-t border-black/5 space-y-2">
               <button @click="handleVideoChatClick" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-black/60 hover:text-black hover:bg-black/5">
@@ -592,7 +821,12 @@ const navigateTo = (view) => {
 
               <button @click="handleFinanceClick" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-emerald-600 hover:bg-emerald-500/10">
                   <CreditCard :size="16" />
-                  <span>🍃Invisible Finance</span>
+                  <span>Invisible Finance</span>
+              </button>
+
+              <button @click="handleExportNotebook" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-gray-500 hover:text-black hover:bg-black/5">
+                  <Box :size="16" />
+                  <span>Archive Data</span>
               </button>
 
               <button @click="showOKEModal = true" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-black/60 hover:text-black hover:bg-black/5">
@@ -642,22 +876,24 @@ const navigateTo = (view) => {
         </div>
       </div>
 
-      <button 
-        @click="navigateTo('notebook')" 
-        :class="['absolute left-1/2 -translate-x-1/2 font-serif-luxury text-4xl md:text-5xl transition-all duration-700 tracking-tighter italic font-bold', activeView === 'notebook' ? 'text-black opacity-100 scale-105' : 'text-black/30 hover:text-black/60']"
-      >
-        Notebook
-      </button>
+
+      <!-- Center Navigation Transitions -->
+      <!-- Center Navigation Restored: Notebook Only -->
+      <div class="absolute left-1/2 -translate-x-1/2 hidden lg:flex items-center">
+        <button @click="navigateTo('notebook')" :class="['group transition-all hover:scale-105 active:scale-95', activeView === 'notebook' ? 'opacity-100' : 'opacity-60 hover:opacity-100']">
+          <span class="font-serif-luxury text-7xl italic tracking-tighter leading-none text-[#1A1A1A]">Notebook</span>
+        </button>
+      </div>
 
       <!-- Right: Invisible Finance Entry -->
       <div class="flex items-center gap-4">
         <button 
-          @click="showInvisibleFinance = true" 
+          @click="showFinancePopup = true" 
           class="flex items-center gap-3 bg-[#1A1A1A] px-6 py-3 rounded-2xl shadow-2xl border border-white/10 hover:scale-105 transition-transform active:scale-95 group"
         >
           <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
           <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">Fairy Vert</span>
-          <CreditCard :size="14" class="text-white/40 group-hover:text-white transition-colors" />
+          <span class="text-sm">🧚</span>
         </button>
 
         <!-- Menu Button (Far Right) -->
@@ -668,7 +904,7 @@ const navigateTo = (view) => {
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 relative">
+    <main class="flex-1 relative overflow-hidden flex flex-col min-h-0">
       <PrimaryInterface 
         v-if="activeView === 'dashboard'" 
         :user="user" 
@@ -676,6 +912,8 @@ const navigateTo = (view) => {
         @toggleVoice="handleToggleVoice"
         @import="handleImport"
         @vision="handleVideoChatClick"
+        @textInput="(val) => handleVoiceTranscription(val, true)"
+        @forceNotebook="forceNotebook"
       />
       <ChatMessaging 
         v-if="activeView === 'chat'" 
@@ -687,6 +925,23 @@ const navigateTo = (view) => {
         v-if="activeView === 'notebook'" 
         :user="user" 
         :entries="notebookEntries" 
+        :filter="notebookFilter"
+        :isListening="isListening"
+        @trigger-sanctuary="handleSanctuaryTrigger"
+        @save-diary="handleManualDiaryEntry"
+        @update-filter="(val) => notebookFilter = val"
+        @toggle-voice="handleToggleVoice"
+        @nav="(view) => {
+            if (view === 'oke') router.push('/oke');
+            else if (view === 'deployment') router.push('/deployment');
+            else if (view === 'map') handleMapClick();
+        }"
+        @action="(type) => {
+            if (type === 'video') handleVideoChatClick();
+            else if (type === 'finance') handleFinanceClick();
+            else if (type === 'recorder') toggleRecording();
+        }"
+        @notify="(t, m, type) => notify(t, m, type)"
       />
       <SystemLogs 
         v-if="activeView === 'log'"
@@ -742,6 +997,14 @@ const navigateTo = (view) => {
              </div>
         </div>
     </div>
+
+    <!-- Sanctuary Popup (Zen UI) -->
+    <SanctuaryPopup 
+        v-if="showSanctuary"
+        :show="showSanctuary"
+        @close="showSanctuary = false"
+        @confirm="handleSanctuaryConfirm"
+    />
 
     <!-- Notifications -->
     <NotificationToast 

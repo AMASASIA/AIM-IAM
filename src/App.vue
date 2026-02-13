@@ -3,7 +3,6 @@
 </template>
 
 <script setup>
-// Main App Entry
 </script>
 
 <style>

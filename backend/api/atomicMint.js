@@ -2,11 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { uploadJSON } = require('../services/ipfs');
 const { executeAtomicMint } = require('../services/atomic');
-
-const express = require('express');
-const router = express.Router();
-const { uploadJSON } = require('../services/ipfs');
-const { executeAtomicMint } = require('../services/atomic');
 const { db } = require('../firebase-backend');
 const { ref, push, set, child } = require("firebase/database");
 

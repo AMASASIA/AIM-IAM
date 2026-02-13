@@ -1,18 +1,27 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import { Eye, Upload, Fingerprint, Navigation } from 'lucide-vue-next';
+import { Eye, Upload, Fingerprint, Navigation, Keyboard } from 'lucide-vue-next';
 
 const props = defineProps({
   user: Object,
   isListening: Boolean
 });
 
-const emit = defineEmits(['toggleVoice', 'import', 'vision']);
+const emit = defineEmits(['toggleVoice', 'import', 'vision', 'textInput']);
 const fileInputRef = ref(null);
 const shimmerRef = ref(null);
+const showTextInput = ref(false);
+const textInputValue = ref('');
 
 const handleImportClick = () => {
   fileInputRef.value?.click();
+};
+
+const handleTextSubmit = () => {
+    if (!textInputValue.value.trim()) return;
+    emit('textInput', textInputValue.value);
+    textInputValue.value = '';
+    showTextInput.value = false;
 };
 
 const handleFileChange = (e) => {
@@ -113,7 +122,34 @@ onUnmounted(() => {
            <span class="text-[7px] font-bold uppercase tracking-widest mt-1 opacity-40 group-hover:opacity-100">Trace</span>
        </button>
 
+       <!-- Keyboard Input -->
+       <button @click="showTextInput = !showTextInput" class="w-14 h-14 flex flex-col items-center justify-center gap-1 bg-white/60 border border-black/5 text-black rounded-[1.5rem] hover:bg-black/5 transition-all group">
+           <Keyboard :size="18" class="opacity-40 group-hover:opacity-100 transition-opacity" />
+           <span class="text-[7px] font-bold uppercase tracking-widest mt-1 opacity-40 group-hover:opacity-100">Key</span>
+       </button>
+
+
+
     </div>
+
+    <!-- Text Input Overlay -->
+    <Transition enter-active-class="transform transition duration-300 ease-out" enter-from-class="translate-y-10 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transform transition duration-200 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-10 opacity-0">
+        <div v-if="showTextInput" class="absolute bottom-40 w-full max-w-md px-6 z-50">
+            <div class="bg-white/90 backdrop-blur-xl p-2 rounded-[2rem] shadow-2xl border border-white/50 flex gap-2">
+                <input 
+                    v-model="textInputValue"
+                    @keydown.enter="handleTextSubmit"
+                    type="text" 
+                    placeholder="Type command (e.g. '@Cal Meeting tomorrow')" 
+                    class="flex-1 bg-transparent border-none focus:ring-0 text-slate-800 placeholder:text-slate-400 font-medium px-4"
+                    autofocus
+                />
+                <button @click="handleTextSubmit" class="p-3 bg-black text-white rounded-full hover:scale-105 transition-transform">
+                    <Navigation :size="16" class="rotate-90" />
+                </button>
+            </div>
+        </div>
+    </Transition>
 
     <!-- Metadata Footers -->
     <div class="absolute bottom-10 left-10 text-[10px] font-mono-light font-bold text-black/20 uppercase tracking-[0.3em] space-y-2 hidden md:block">

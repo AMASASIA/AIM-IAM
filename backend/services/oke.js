@@ -1,5 +1,6 @@
 const { ethers } = require('ethers');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 // MOCK ABI for development (Complete with real ABIs after compilation)
 const OKE_ABI = [
