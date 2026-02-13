@@ -59,9 +59,17 @@ const toggleDiaryInput = async () => {
 
 const saveDiaryEntry = () => {
     if (!diaryInput.value.trim()) return;
+    
+    // Check for Amas Trigger
+    if (diaryInput.value.toLowerCase().includes('@amas')) {
+        emit('trigger-sanctuary', diaryInput.value);
+        diaryInput.value = '';
+        showDiaryInput.value = false;
+        return;
+    }
+
     emit('save-diary', diaryInput.value);
     diaryInput.value = '';
-    showDiaryInput.value = false;
     showDiaryInput.value = false;
 };
 
@@ -120,8 +128,8 @@ const confirmShare = async () => {
 </script>
 
 <template>
-  <div v-if="user" class="w-full h-full flex flex-col items-center overflow-y-auto custom-scroll bg-white/50 backdrop-blur-sm">
-    <div class="w-full max-w-6xl px-6 md:px-12 py-6 md:py-12 space-y-12 md:space-y-20">
+  <div v-if="user" class="w-full h-full flex flex-col items-center overflow-y-auto custom-scroll bg-white/50 backdrop-blur-sm relative z-0" id="notebook-container">
+    <div class="w-full max-w-6xl px-6 md:px-12 py-6 md:py-12 space-y-12 md:space-y-20 relative z-10">
       
       <!-- HEADER SECTION -->
       <header class="text-center space-y-6 md:space-y-8 mt-16 md:mt-24">

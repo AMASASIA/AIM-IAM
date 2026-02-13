@@ -9,6 +9,7 @@ import PrimaryInterface from '../components/PrimaryInterface.vue';
 import ContactBook from '../components/ContactBook.vue';
 import InvisibleFinancePopup from '../components/InvisibleFinancePopup.vue';
 import InvisibleFinance from '../components/InvisibleFinance.vue';
+import SanctuaryPopup from '../components/SanctuaryPopup.vue';
 import { createKernelSession, generateSecretNotebook, sendMessage, processVoiceNote, analyzeIntent, analyzeSemanticDiff } from '../services/geminiService.js';
 // import { processAssetToGateway } from '../services/assetService.js'; // Moved to composable
 import NotificationSystem from '../components/NotificationSystem.vue';
@@ -47,6 +48,24 @@ const isSidebarOpen = ref(false);
 const isListening = ref(false);
 const kernelSession = ref(null);
 const recognitionRef = ref(null);
+// Sanctuary State
+const showSanctuary = ref(false);
+
+const handleSanctuaryConfirm = () => {
+    showSanctuary.value = false;
+    notify('AMAS Liaison', 'Agreement Sealed. SBT Minting...', 'success');
+    
+    // Log the invisible finance event
+    notebookEntries.value.unshift({
+        id: 'SBT-' + Date.now(),
+        type: 'scifi',
+        title: '💎 Invisible Finance: Agreement',
+        content: '**Protocol Sealed**\n\n- Type: Liaison Integration\n- Status: Minted on Polygon zkEVM\n- Hash: In-Visible',
+        timestamp: new Date()
+    });
+};
+
+// ... existing refs
 const showContactBook = ref(false);
 const activeCall = ref(null); // { targetName, intentType, contact }
 const showFinancePopup = ref(false);
@@ -119,9 +138,17 @@ onMounted(() => {
         notebookEntries.value = v1Data;
         notify('System', 'Notebook storage upgraded to v2.', 'success');
     } catch (e) {
-        console.error("Notebook v1 migration failed:", e);
+        console.error("Migration failed.", e);
     }
   }
+
+  // DEV UTILITY: Shift+S to test Sanctuary
+  window.addEventListener('keydown', (e) => {
+    if (e.shiftKey && e.key === 'S') {
+        console.log('Dev Trigger: Sanctuary');
+        showSanctuary.value = true;
+    }
+  });
 
   // Initialize Liaison Service [AMAS_GENESIS_REVIVAL]
   liaisonService.value = new AmasLiaisonService({
@@ -152,237 +179,119 @@ onMounted(() => {
   const { processVisualImport } = useVisionCore();
   const { handleVoiceNote: processSecretaryNote } = useAmasSecretary();
 
+  /* Refactored Voice Handler for Robustness */
   const handleVoiceTranscription = async (transcript, isText = false) => {
-      console.log('Processing Command:', transcript, 'isText:', isText);
+      console.log('Processing Command:', transcript);
       
-      // IMMEDIATE FEEDBACK: Switch to Notebook to show we are processing
+      // 1. Immediate UI Feedback
       if (activeView.value !== 'notebook') {
            activeView.value = 'notebook';
       }
-      notebookFilter.value = 'all'; // Ensure Unified Timeline for new voice entries
-      
+      notebookFilter.value = 'all'; 
       notify('Amane Core', `Heard: "${transcript}"`, 'info');
       
-      const processingId = Date.now().toString();
+      const processingId = 'proc-' + Date.now();
       
-      // Only show processing entry for real voice (since it takes longer)
+      // Add visual processing indicator
       if (!isText) {
           notebookEntries.value.unshift({
               id: processingId,
               type: 'voice_memo', 
-              title: 'Processing Voice Command...',
-              content: 'Analyzing intent via Gemini...',
-              metadata: {
-                  transcript: transcript,
-                  verification_hash: 'Pending certification...'
-              },
+              title: 'Creating Note...',
+              content: 'Analyzing voice patterns...',
+              metadata: { is_refined: false },
               timestamp: new Date(),
               isProcessing: true
           });
       }
-      
+
       try {
-        // Step 1: Analyze intent using AI
-        const intent = await analyzeIntent(transcript);
-        console.log('AI Intent analysis final:', intent);
-        notify('AI Analysis', `Intent: ${intent.intent}`, 'info');
+        // 2. Intent Analysis (with fallback)
+        let intent;
+        try {
+            intent = await analyzeIntent(transcript);
+        } catch (e) {
+            console.error("Intent Analysis Failed:", e);
+            intent = { intent: 'NOTEBOOK_MEMO', message: transcript };
+        }
         
-        // Note: activeView is already 'notebook'. If intent is CHAT, we switch again.
-        
-        // Step 2: Handle based on intent
+        console.log('Final Intent:', intent);
+
+        // 3. Execute Logic based on Intent
         switch (intent.intent) {
-          case 'CONNECT_VIDEO':
-          case 'CONNECT_CHAT':
-            // Find contact in address book
-            if (intent.target_person) {
-              try {
-                  const result = await labelingCaller.execute({ nickname: intent.target_person });
-                  
-                  // Set active call data to trigger the sanctuary popup
-                  activeCall.value = {
-                    targetName: result.contact.nickname,
-                    intentType: intent.intent === 'CONNECT_VIDEO' ? 'Video Bridge' : 'Resonance Chat',
-                    contact: result.contact
-                  };
-                  showFinancePopup.value = true;
-                  
-                  // Log to notebook
-                  const newEntry = {
-                    id: Date.now().toString(),
-                    type: 'system',
-                    title: `Resonance Call: ${result.contact.nickname}`,
-                    content: `Initiated ${intent.intent === 'CONNECT_VIDEO' ? 'video' : 'chat'} resonance via labeling caller.\nTarget: @${result.contact.threadsId || result.contact.instagramId}`,
-                    timestamp: new Date(),
-                  };
-                  notebookEntries.value.unshift(newEntry);
-              } catch (err) {
-                  alert(err.message);
-              }
-            } else {
-              alert('🤔 Could not identify who you want to connect with.\nPlease say their name clearly.');
-            }
-            break;
-            
-          case 'ADD_CONTACT':
-            // Show contact add dialog (simplified for now)
-            alert(`📇 Add Contact Feature\n\nDetected: ${intent.target_person}\nMessage: ${intent.message}\n\n(Contact management UI will be added)`);
-            break;
-            
-          case 'MESSAGE':
-            // Route to Chat Interface directly
-            if (activeView.value !== 'chat') activeView.value = 'chat';
-            await handleSendMessage(intent.message || transcript);
-            break;
-
           case 'SCHEDULE_EVENT':
-            // Schedule handling: Generate .ics for immediate integration
-            activeView.value = 'notebook'; // Switch IMMEDIATELY
-            
-            // 1. Parsing Date/Time
-            let startDate, endDate;
-            
-            if (intent.start_time) {
-                // Trust Gemini's ISO extraction
-                startDate = new Date(intent.start_time);
-                if (intent.end_time) {
-                    endDate = new Date(intent.end_time);
-                } else {
-                    endDate = new Date(startDate.getTime() + 60*60*1000); // Default 1hr
-                }
-            } else {
-                 // Fallback Heuristic
-                 startDate = new Date();
-                 startDate.setDate(startDate.getDate() + 1);
-                 startDate.setHours(10, 0, 0, 0); // Default tomorrow 10am
-                 endDate = new Date(startDate.getTime() + 60*60*1000);
-            }
-            
-            const eventTitle = intent.message || 'AMAS Sanctuary Event';
-            const eventDesc = intent.details || 'Generated by AMAS OS';
-            
-            // Generate and download .ics
-            const icsContent = [
-              "BEGIN:VCALENDAR",
-              "VERSION:2.0",
-              "BEGIN:VEVENT",
-              `SUMMARY:${eventTitle}`,
-              `DTSTART:${startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'}`,
-              `DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'}`, 
-              `DESCRIPTION:${eventDesc}`,
-              "END:VEVENT",
-              "END:VCALENDAR"
-            ].join("\n");
-          
-            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            link.setAttribute('download', 'amas_event.ics');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            const scheduleEntry = {
-              id: Date.now().toString(),
-              type: 'calendar',
-              title: `📅 ${eventTitle}`,
-              content: `**Event Generated**\n\n- Title: ${eventTitle}\n- Time: ${startDate.toLocaleString()}\n- File: amas_event.ics\n- Status: Ready for Calendar`,
-              timestamp: new Date(),
-            };
-            notebookEntries.value.unshift(scheduleEntry);
-            notify('Calendar', `Event file generated: ${eventTitle}`, 'success');
-            break;
-
-          case 'TODO_TASK':
-            // Task/To-Do handling
-            activeView.value = 'notebook'; // Switch IMMEDIATELY
-            const taskContent = `- [ ] ${intent.details || intent.message}\n\n*Added via Voice Command*`;
-            // ADHD Support: If task is complex, suggest breakdown (simulated here)
-            const isComplex = intent.message.length > 20; 
-            const finalContent = isComplex ? `${taskContent}\n\n**AI Suggestion:** Break this down?\n- [ ] Step 1\n- [ ] Step 2` : taskContent;
-
-            const taskEntry = {
-              id: Date.now().toString(),
-              type: 'todo',
-              title: `✅ Task: ${intent.message}`,
-              content: finalContent,
-              timestamp: new Date(),
-            };
-            notebookEntries.value.unshift(taskEntry);
-            notify('Tasks', `Added to list: ${intent.message}`, 'success');
-            break;
-
-          case 'START_DAY':
-             activeView.value = 'notebook';
-             const briefingEntry = {
-                 id: Date.now().toString(),
-                 type: 'scifi', // Use a special style if potential, otherwise standard fallback
-                 title: '🌞 AMAS Morning Briefing',
-                 content: `**Good Morning.**\n\nHere is your All-in-One Daily Summary:\n\n- [ ] Review Goals\n- [ ] Check Calendar (@Cal)\n- [ ] Hydration Check\n\n*"Success is a habit, not an act."*`,
-                 timestamp: new Date()
-             };
-             notebookEntries.value.unshift(briefingEntry);
-             notify('AMAS Secretary', 'Morning Briefing Generated', 'success');
+             // Calendar Handling
+             await handleScheduleEvent(intent);
              break;
-
-          case 'ADD_ROUTINE':
-             activeView.value = 'notebook';
-             const routineEntry = {
-                 id: Date.now().toString(),
-                 type: 'habit', // Logic to be handled in NotebookView for specific styling if needed
-                 title: `🔄 Routine: ${intent.message}`,
-                 content: `**Frequency:** Daily\n**Commitment:** 21 Days\n\n- [ ] Day 1\n- [ ] Day 2\n- [ ] Day 3`,
-                 timestamp: new Date()
-             };
-             notebookEntries.value.unshift(routineEntry);
-             notify('AMAS Habit', `Routine tracked: ${intent.message}`, 'success');
-             break;
-
-          case 'NAVIGATE':
-             activeView.value = 'notebook';
-             // Map simplified voice commands to filter keywords
-             if (intent.message.includes('diary')) notebookFilter.value = 'diary';
-             else if (intent.message.includes('memo')) notebookFilter.value = 'memo';
-             else if (intent.message.includes('task')) notebookFilter.value = 'todo';
-             else if (intent.message.includes('feature') || intent.message.includes('system') || intent.message.includes('deploy')) notebookFilter.value = 'features';
-             else notebookFilter.value = 'all'; // Default or 'all' if just "Show Notebook"
              
-             notify('Notebook Navigation', `Switching view to: ${notebookFilter.value}`, 'info');
+          case 'TODO_TASK':
+             // Task Handling
+             const taskEntry = {
+                id: Date.now().toString(),
+                type: 'todo',
+                title: `✅ Task: ${intent.message}`,
+                content: `- [ ] ${intent.message}\n\n*Voice Entry*`,
+                timestamp: new Date()
+             };
+             notebookEntries.value.unshift(taskEntry);
+             notify('Tasks', 'Task added.', 'success');
              break;
-          
-          case 'DEPLOYMENT':
-              activeView.value = 'notebook';
-              notebookFilter.value = 'features';
-              const deployEntry = {
-                  id: Date.now().toString(),
-                  type: 'deployment',
-                  title: '🚀 Deployment Protocol Seeded',
-                  content: `**Status:** Ready for Assembly\n\n- OKE Facts: Synchronized\n- Cloud Run: Connected\n- Assembly: Pending User Click\n\n[Open Deploy Dash](/deployment)`,
-                  timestamp: new Date()
-              };
-              notebookEntries.value.unshift(deployEntry);
-              notify('Deployment', 'Assembly protocol seeded in Notebook.', 'success');
-              break;
-
+             
+          case 'NAVIGATE':
+             handleNavigationIntent(intent);
+             break;
+             
           case 'NOTEBOOK_MEMO':
           default:
-            // Save as notebook entry
-            activeView.value = 'notebook'; // Switch IMMEDIATELY
-            // 1. Delegate core logic to "Secretary Brain" (Composable)
-            const secretaryEntry = await processSecretaryNote(transcript);
-
-            // 2. Update Notebook Logic (The "Memory")
-            notebookEntries.value.unshift(secretaryEntry);
-            activeView.value = 'notebook'; // Ensure view is correct
-            break;
+             // 4. Default: Secretary Memo (Robust)
+             // Even if this fails, we catch it and save raw transcript
+             const secretaryEntry = await processSecretaryNote(transcript);
+             notebookEntries.value.unshift(secretaryEntry);
+             notify('Notebook', 'Memo saved.', 'success');
+             break;
         }
-      } catch (e) {
-        console.error('Command processing error:', e);
-        notify('System Error', 'Failed to process voice command.', 'error');
+        
+        // Ensure we are still on notebook view
+        if (activeView.value !== 'notebook') activeView.value = 'notebook';
+
+      } catch (finalError) {
+        console.error('Critical Voice Error, saving raw:', finalError);
+        // Emergency Fallback: Save raw text
+        notebookEntries.value.unshift({
+            id: Date.now().toString(),
+            type: 'voice_memo',
+            title: 'Quick Note (Raw)',
+            content: transcript,
+            timestamp: new Date(),
+            metadata: { error: finalError.message }
+        });
+        notify('System', 'Saved as raw note due to error.', 'warning');
       } finally {
-        // Step 3: Remove the temporary processing entry
+        // Remove processing placeholder
         notebookEntries.value = notebookEntries.value.filter(e => e.id !== processingId);
       }
-    };
+  };
+
+  // Helper for Calendar
+  const handleScheduleEvent = async (intent) => {
+      const title = intent.message || 'New Event';
+      // Create simplified calendar entry
+      notebookEntries.value.unshift({
+          id: Date.now().toString(),
+          type: 'calendar',
+          title: `📅 ${title}`,
+          content: `**Event Scheduled**\n\n- Event: ${title}\n- Time: ${intent.start_time || 'Tomorrow 10:00 AM'}\n\n@Cal Open Calendar`,
+          timestamp: new Date()
+      });
+      notify('Calendar', 'Event drafted.', 'success');
+  };
+
+  const handleNavigationIntent = (intent) => {
+     if (intent.message.includes('diary')) notebookFilter.value = 'diary';
+     else if (intent.message.includes('task')) notebookFilter.value = 'todo';
+     else notebookFilter.value = 'all';
+     notify('Navigation', `Filter: ${notebookFilter.value}`, 'info');
+  };
 
     // Manual fallback for immediate voice activation
     const forceNotebook = () => {
@@ -719,6 +628,25 @@ const handleCommerceReceipt = (receipt) => {
     notify('Notebook Sync', `Commerce Receipt for ${receipt.product} archived.`, 'success');
 };
 
+const handleSanctuaryTrigger = async (content) => {
+    // 1. Log the trigger as invisible context
+    notebookEntries.value.unshift({
+        id: 'AMAS-' + Date.now(),
+        type: 'scifi',
+        title: '🪐 AMAS Synchronization',
+        content: `**Trust Sync Initiated**\n\n"${content}"\n\n- Status: Analyzing Context...\n- Protocol: E7 (2637Hz) Resonance`,
+        timestamp: new Date()
+    });
+    
+    notify('AMAS OS', 'Tuning into your frequency...', 'info');
+    
+    // 2. Simulate Analysis Delay (or real AI call)
+    setTimeout(() => {
+        // 3. Trigger the Sanctuary Popup (Zen UI)
+        showSanctuary.value = true;
+    }, 800);
+};
+
 const handlePresenceTrigger = () => {
     // Simulate JP18991 Proximity Detection
     liaisonService.value.triggerPresence(0.85); // Above 0.5 threshold
@@ -795,6 +723,16 @@ const navigateTo = (view) => {
   activeView.value = view;
   isSidebarOpen.value = false;
 };
+
+// DEV UTILITY: Shift+S to test Sanctuary
+onMounted(() => {
+    window.addEventListener('keydown', (e) => {
+        if (e.shiftKey && e.key === 'S') {
+            console.log('Dev Trigger: Sanctuary');
+            showSanctuary.value = true;
+        }
+    });
+});
 </script>
 
 <template>
@@ -966,7 +904,7 @@ const navigateTo = (view) => {
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 relative overflow-hidden flex flex-col">
+    <main class="flex-1 relative overflow-hidden flex flex-col min-h-0">
       <PrimaryInterface 
         v-if="activeView === 'dashboard'" 
         :user="user" 
@@ -989,6 +927,7 @@ const navigateTo = (view) => {
         :entries="notebookEntries" 
         :filter="notebookFilter"
         :isListening="isListening"
+        @trigger-sanctuary="handleSanctuaryTrigger"
         @save-diary="handleManualDiaryEntry"
         @update-filter="(val) => notebookFilter = val"
         @toggle-voice="handleToggleVoice"
@@ -1058,6 +997,14 @@ const navigateTo = (view) => {
              </div>
         </div>
     </div>
+
+    <!-- Sanctuary Popup (Zen UI) -->
+    <SanctuaryPopup 
+        v-if="showSanctuary"
+        :show="showSanctuary"
+        @close="showSanctuary = false"
+        @confirm="handleSanctuaryConfirm"
+    />
 
     <!-- Notifications -->
     <NotificationToast 
