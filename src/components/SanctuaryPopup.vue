@@ -25,7 +25,7 @@ const playBell = async () => {
         if (audioCtx.value.state === 'suspended') {
             await audioCtx.value.resume();
         }
-        
+
         const now = audioCtx.value.currentTime;
         
         // E7 (2637.02 Hz) - High pure tone for clarity
