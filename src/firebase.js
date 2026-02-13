@@ -23,5 +23,7 @@ if (!isConfigured) {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+import { getFirestore } from "firebase/firestore";
+const firestore = getFirestore(app);
 
-export { db };
+export { db, firestore };

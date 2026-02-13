@@ -1,8 +1,11 @@
 <script setup>
 import { ref, nextTick } from 'vue';
-import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen, Mic, Video, Activity } from 'lucide-vue-next';
+import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen, Mic, Video, Activity, Globe } from 'lucide-vue-next';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import OKECertificationCard from './OKECertificationCard.vue';
+import MapShareModal from './MapShareModal.vue';
+import { collection, addDoc } from 'firebase/firestore';
+import { firestore } from '../firebase';
 
 const props = defineProps({
   user: Object,
@@ -17,7 +20,7 @@ const props = defineProps({
   isListening: Boolean
 });
 
-const emit = defineEmits(['save-diary', 'update-filter', 'toggle-voice', 'nav', 'action']);
+const emit = defineEmits(['save-diary', 'update-filter', 'toggle-voice', 'nav', 'action', 'notify']);
 const diaryInput = ref('');
 const showDiaryInput = ref(false);
 
@@ -59,6 +62,60 @@ const saveDiaryEntry = () => {
     emit('save-diary', diaryInput.value);
     diaryInput.value = '';
     showDiaryInput.value = false;
+    showDiaryInput.value = false;
+};
+
+// --- Map Share Logic ---
+const showMapModal = ref(false);
+const targetNote = ref(null);
+const isSharing = ref(false);
+
+const openShareModal = (entry) => {
+    targetNote.value = entry;
+    showMapModal.value = true;
+};
+
+const confirmShare = async () => {
+    if (!targetNote.value) return;
+    isSharing.value = true;
+    
+    if (!navigator.geolocation) {
+        emit('notify', 'System', 'Geolocation not supported.', 'error');
+        isSharing.value = false;
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        try {
+            const { latitude, longitude } = position.coords;
+            
+            await addDoc(collection(firestore, 'raw_drops'), {
+                text: targetNote.value.content,
+                title: targetNote.value.title || 'Untitled',
+                location: {
+                    lat: latitude,
+                    lng: longitude
+                },
+                source: 'notebook',
+                timestamp: new Date(),
+                userId: props.user?.id || 'anonymous',
+                status: 'pending_ai'
+            });
+
+            emit('notify', 'Aether Map', 'Request Sent to Aether.', 'success');
+            showMapModal.value = false;
+        } catch (e) {
+            console.error("Share failed", e);
+            emit('notify', 'System', 'Failed to share memory.', 'error');
+        } finally {
+            isSharing.value = false;
+            targetNote.value = null;
+        }
+    }, (err) => {
+        console.error("Geo error", err);
+        emit('notify', 'System', 'Location access denied.', 'error');
+        isSharing.value = false;
+    });
 };
 </script>
 
@@ -83,7 +140,7 @@ const saveDiaryEntry = () => {
             <span class="hover:text-purple-500 cursor-pointer transition-colors" @click="$emit('toggle-voice')">Speak</span>
           </p>
         </div>
-        <h1 class="font-serif-luxury text-7xl md:text-[8rem] lg:text-[10rem] text-slate-900 leading-[0.8] tracking-tighter font-bold italic select-none">Personal Notebook</h1>
+        <h1 class="font-serif-luxury text-8xl md:text-[10rem] lg:text-[12rem] text-slate-900 leading-[0.8] tracking-tighter font-bold italic select-none">Personal Notebook</h1>
         
         <!-- Notebook Navigation Tabs -->
         <div class="flex justify-center gap-4 mt-8">
@@ -197,7 +254,7 @@ const saveDiaryEntry = () => {
               
               <div class="flex-1 p-10 md:p-16 space-y-8 flex flex-col justify-center">
                 <div class="flex justify-between items-start">
-                  <div class="space-y-4">
+                  <div class="space-y-4 max-w-[80%]">
                     <!-- Date Header -->
                     <div class="flex items-center gap-3">
                         <span class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
@@ -212,6 +269,17 @@ const saveDiaryEntry = () => {
                     <h3 class="font-serif-luxury text-3xl md:text-4xl italic text-slate-900 leading-tight">
                         {{ entry.title }}
                     </h3>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="flex items-center gap-2">
+                      <button 
+                        @click="openShareModal(entry)"
+                        class="px-4 py-2 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 hover:text-slate-800 transition-all active:scale-95"
+                        title="Share to Aether Map"
+                      >
+                          ▼ Discovery
+                      </button>
                   </div>
                 </div>
                 
@@ -326,6 +394,13 @@ const saveDiaryEntry = () => {
         </div>
       </footer>
     </div>
+
+    <MapShareModal 
+        v-if="showMapModal" 
+        :isLoading="isSharing"
+        @close="showMapModal = false"
+        @confirm="confirmShare"
+    />
   </div>
 </template>
 

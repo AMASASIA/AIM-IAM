@@ -203,9 +203,21 @@ export const analyzeIntent = async (userInput) => {
         const result = await model.generateContent(`${userInput}\n\n[Current System Time: ${new Date().toLocaleString()}]`);
         const response = await result.response;
         try {
-            return JSON.parse(response.text());
+            let text = response.text();
+            // Clean markdown code blocks if present
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(text);
         } catch (e) {
-            return { intent: 'NOTEBOOK_MEMO', target_person: null, message: userInput, confidence: 0.5 };
+            console.error("Intent Analysis Parsing Error:", e);
+            // Graceful fallback including the original message
+            return {
+                intent: 'NOTEBOOK_MEMO',
+                target_person: null,
+                message: userInput,
+                original_transcript: userInput,
+                details: 'AI Intent Analysis failed, saved as simple memo.',
+                confidence: 0.5
+            };
         }
     });
 };

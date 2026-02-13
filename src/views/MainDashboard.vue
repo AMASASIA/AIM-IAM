@@ -943,7 +943,7 @@ const navigateTo = (view) => {
       <!-- Center Navigation Restored: Notebook Only -->
       <div class="absolute left-1/2 -translate-x-1/2 hidden lg:flex items-center">
         <button @click="navigateTo('notebook')" :class="['group transition-all hover:scale-105 active:scale-95', activeView === 'notebook' ? 'opacity-100' : 'opacity-60 hover:opacity-100']">
-          <span class="font-serif-luxury text-4xl italic tracking-tighter leading-none text-[#1A1A1A]">Notebook</span>
+          <span class="font-serif-luxury text-7xl italic tracking-tighter leading-none text-[#1A1A1A]">Notebook</span>
         </button>
       </div>
 
@@ -966,7 +966,7 @@ const navigateTo = (view) => {
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 relative">
+    <main class="flex-1 relative overflow-hidden flex flex-col">
       <PrimaryInterface 
         v-if="activeView === 'dashboard'" 
         :user="user" 
@@ -1002,6 +1002,7 @@ const navigateTo = (view) => {
             else if (type === 'finance') handleFinanceClick();
             else if (type === 'recorder') toggleRecording();
         }"
+        @notify="(t, m, type) => notify(t, m, type)"
       />
       <SystemLogs 
         v-if="activeView === 'log'"
