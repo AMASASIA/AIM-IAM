@@ -1,11 +1,14 @@
 <script setup>
-import { ref, nextTick } from 'vue';
-import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen, Mic, Video, Activity, Globe } from 'lucide-vue-next';
+import { ref, nextTick, watch, computed } from 'vue';
+import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen, Mic, Video, Activity, Globe, Layout, Triangle } from 'lucide-vue-next';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import OKECertificationCard from './OKECertificationCard.vue';
 import MapShareModal from './MapShareModal.vue';
+import DiscoveryPanel from './DiscoveryPanel.vue';
 import { collection, addDoc } from 'firebase/firestore';
 import { firestore } from '../firebase';
+import { mockExtractInsights, parseInsightsToNotebookEntry } from '../services/discoveryService';
+import MeridiemTimeline from './MeridiemTimeline.vue';
 
 const props = defineProps({
   user: Object,
@@ -20,14 +23,15 @@ const props = defineProps({
   isListening: Boolean
 });
 
-const emit = defineEmits(['save-diary', 'update-filter', 'toggle-voice', 'nav', 'action', 'notify']);
+const emit = defineEmits(['save-diary', 'update-filter', 'toggle-voice', 'nav', 'action', 'notify', 'trigger-sanctuary']);
 const diaryInput = ref('');
 const showDiaryInput = ref(false);
+const isMeridiemOpen = ref(false);
+const meridiemInitialContent = ref('');
 
 const localFilter = ref(props.filter);
 
 // Sync prop change to local state
-import { watch, computed } from 'vue';
 watch(() => props.filter, (newVal) => {
     localFilter.value = newVal;
 });
@@ -125,6 +129,51 @@ const confirmShare = async () => {
         isSharing.value = false;
     });
 };
+
+// --- AI Discovery Logic ---
+const showDiscoveryPanel = ref(false);
+const isExtracting = ref(false);
+
+const openDiscoveryPanel = () => {
+    showDiscoveryPanel.value = true;
+};
+
+const handleExtractInsights = async (params) => {
+    isExtracting.value = true;
+    
+    try {
+        // Use mock service for now (replace with real API when deployed)
+        const result = await mockExtractInsights(params);
+        
+        if (result.success) {
+            // Parse insights into notebook entry
+            const entry = parseInsightsToNotebookEntry(result.insights, result);
+            
+            // Emit to parent to add to entries
+            emit('save-diary', entry.content, entry);
+            emit('notify', 'AI Discovery', `Extracted ${result.postsAnalyzed} insights from @${result.handle}`, 'success');
+            
+            // --- LINKAGE WITH AMAS AGENT ---
+            // 自動的にエージェントに通知し、SBTとしてのミントをトリガーする
+            emit('action', {
+                type: 'amas-agent-command',
+                command: 'record_insight',
+                data: {
+                    content: `AI Discovery: Identified ${result.postsAnalyzed} latent needs for @${result.handle}`,
+                    category: 'Intelligence',
+                    result: result
+                }
+            });
+
+            showDiscoveryPanel.value = false;
+        }
+    } catch (error) {
+        console.error('Discovery error:', error);
+        emit('notify', 'System', 'Failed to extract insights. Please try again.', 'error');
+    } finally {
+        isExtracting.value = false;
+    }
+};
 </script>
 
 <template>
@@ -134,18 +183,26 @@ const confirmShare = async () => {
       <!-- HEADER SECTION -->
       <header class="text-center space-y-6 md:space-y-8 mt-16 md:mt-24">
         <div class="flex flex-col items-center justify-center">
-          <div class="flex gap-6">
-            <button @click="toggleDiaryInput" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl shadow-teal-100/20 hover:scale-110 hover:shadow-teal-500/30 transition-all cursor-pointer group active:scale-95">
+          <div class="flex gap-4 md:gap-8">
+            <!-- Functional Buttons Group (黒BOX style) -->
+            <button @click="openDiscoveryPanel" title="AI Discovery" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/95 flex items-center justify-center text-purple-400 shadow-discovery hover:scale-110 transition-all cursor-pointer group active:scale-95 border border-purple-500/20 animate-pulse-subtle">
+              <Triangle :size="32" class="rotate-180 fill-current group-hover:scale-110 transition-transform duration-500" />
+            </button>
+            <button @click="isMeridiemOpen = true" title="Meridiem Timeline" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-black flex items-center justify-center text-white shadow-meridiem hover:scale-110 transition-all cursor-pointer group active:scale-95 border border-white/20 animate-pulse-slow">
+              <Layout :size="32" class="group-hover:rotate-12 transition-transform duration-500" />
+            </button>
+            
+            <div class="hidden md:block w-[1px] h-24 bg-slate-200/30 mx-2" />
+            
+            <button @click="toggleDiaryInput" title="Write Entry" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl hover:scale-110 transition-all cursor-pointer group active:scale-95">
               <Feather :size="32" class="group-hover:rotate-12 transition-transform duration-500" />
             </button>
-            <button @click="$emit('toggle-voice')" :class="['w-16 h-16 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all cursor-pointer group active:scale-95 shadow-2xl', isListening ? 'bg-red-500 text-white scale-110 shadow-red-500/50' : 'bg-slate-900 text-purple-400 shadow-purple-100/20 hover:shadow-purple-500/30']">
+            <button @click="$emit('toggle-voice')" title="Speak / Listen" :class="['w-16 h-16 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all cursor-pointer group active:scale-95 shadow-2xl', isListening ? 'bg-red-500 text-white scale-110 shadow-red-500/50' : 'bg-slate-900 text-cyan-400 shadow-cyan-100/20 hover:shadow-cyan-500/30']">
               <component :is="isListening ? Zap : Mic" :size="32" :class="[isListening ? 'animate-pulse' : 'group-hover:-rotate-12 transition-transform duration-500']" />
             </button>
           </div>
-          <p class="mt-6 text-[9px] font-bold uppercase tracking-[0.3em] text-slate-400">
-            <span class="hover:text-teal-500 cursor-pointer transition-colors" @click="toggleDiaryInput">Write</span>
-            <span class="mx-2">/</span>
-            <span class="hover:text-purple-500 cursor-pointer transition-colors" @click="$emit('toggle-voice')">Speak</span>
+          <p class="mt-8 text-[11px] font-black uppercase tracking-[0.5em] text-slate-400 animate-in">
+            Reflecting Synchronized Intelligence
           </p>
         </div>
         <h1 class="font-serif-luxury text-8xl md:text-[10rem] lg:text-[12rem] text-slate-900 leading-[0.8] tracking-tighter font-bold italic select-none">Personal Notebook</h1>
@@ -199,6 +256,46 @@ const confirmShare = async () => {
           </div>
       </section>
 
+      <!-- FEATURES GRID (Always shows when Features tab is active, independent of entries) -->
+      <section v-if="localFilter === 'features'" class="w-full animate-in">
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-8">
+                <!-- 1. Meridiem (Visual Sync) - Promoted to first item since Discovery moved to header -->
+                <button @click="isMeridiemOpen = true" class="flex flex-col items-center justify-center p-10 bg-black rounded-[2.5rem] border border-white/10 hover:border-white transition-all group/btn shadow-2xl hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+                    <Layout :size="40" class="text-white mb-6 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Meridiem</span>
+                    <span class="font-serif-luxury text-2xl italic text-white mt-2">Markwhen Sync</span>
+                </button>
+
+                <!-- 3. OKE System -->
+                <button @click="$emit('nav', 'oke')" class="flex flex-col items-center justify-center p-10 bg-white rounded-[2.5rem] border border-slate-100 hover:border-blue-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Activity :size="40" class="text-blue-500 mb-6 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">OKE System</span>
+                    <span class="font-serif-luxury text-2xl italic text-slate-900 mt-2">Certifications</span>
+                </button>
+                
+                <!-- 4. Video Bridge -->
+                <button @click="$emit('action', 'video')" class="flex flex-col items-center justify-center p-10 bg-white rounded-[2.5rem] border border-slate-100 hover:border-teal-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Video :size="40" class="text-teal-500 mb-6 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Video Bridge</span>
+                    <span class="font-serif-luxury text-2xl italic text-slate-900 mt-2">Resonance Call</span>
+                </button>
+
+                <!-- 5. AI Map -->
+                <button @click="$emit('nav', 'map')" class="flex flex-col items-center justify-center p-10 bg-white rounded-[2.5rem] border border-slate-100 hover:border-indigo-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <MapPin :size="40" class="text-indigo-500 mb-6 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">AI Map</span>
+                    <span class="font-serif-luxury text-2xl italic text-slate-900 mt-2">Geographic Trace</span>
+                </button>
+
+                <!-- 6. Invisible Finance -->
+                <button @click="$emit('action', 'finance')" class="flex flex-col items-center justify-center p-10 bg-white rounded-[2.5rem] border border-slate-100 hover:border-emerald-500 transition-all group/btn shadow-sm hover:shadow-xl">
+                    <Zap :size="40" class="text-emerald-500 mb-6 group-hover/btn:scale-110 transition-transform" />
+                    <span class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Fairy Vert</span>
+                    <span class="font-serif-luxury text-2xl italic text-slate-900 mt-2">Invisible Finance</span>
+                </button>
+          </div>
+      </section>
+
       <!-- VISUAL DIARY LOG -->
       <section v-if="filteredEntries.length > 0" class="space-y-12">
         <div class="flex items-center gap-6 px-4">
@@ -214,37 +311,6 @@ const confirmShare = async () => {
           :key="entry.id" 
           class="bg-white rounded-[3rem] border border-slate-100 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-2xl hover:-translate-y-2 relative group"
         >
-          <!-- FEATURE BUTTONS OVERLAY FOR FEATURES TAB -->
-          <div v-if="localFilter === 'features' && entry.id === filteredEntries[0]?.id" class="w-full p-10 bg-slate-50/50 border-b border-slate-100">
-             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
-                <button @click="$emit('nav', 'oke')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-blue-500 transition-all group/btn shadow-sm hover:shadow-xl">
-                    <Activity :size="32" class="text-blue-500 mb-4 group-hover/btn:scale-110 transition-transform" />
-                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">OKE System</span>
-                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Certifications</span>
-                </button>
-                
-                <button @click="$emit('action', 'video')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-teal-500 transition-all group/btn shadow-sm hover:shadow-xl">
-                    <Video :size="32" class="text-teal-500 mb-4 group-hover/btn:scale-110 transition-transform" />
-                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Video Bridge</span>
-                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Resonance Call</span>
-                </button>
-                <button @click="$emit('nav', 'map')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-indigo-500 transition-all group/btn shadow-sm hover:shadow-xl">
-                    <MapPin :size="32" class="text-indigo-500 mb-4 group-hover/btn:scale-110 transition-transform" />
-                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">AI Map</span>
-                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Geographic Trace</span>
-                </button>
-                <button @click="$emit('action', 'finance')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-emerald-500 transition-all group/btn shadow-sm hover:shadow-xl">
-                    <Zap :size="32" class="text-emerald-500 mb-4 group-hover/btn:scale-110 transition-transform" />
-                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Fairy Vert</span>
-                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">Invisible Finance</span>
-                </button>
-                <button @click="$emit('action', 'recorder')" class="flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-slate-200 hover:border-red-500 transition-all group/btn shadow-sm hover:shadow-xl">
-                    <Feather :size="32" class="text-red-500 mb-4 group-hover/btn:scale-110 transition-transform" />
-                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Recorder</span>
-                    <span class="font-serif-luxury text-xl italic text-slate-900 mt-2">L0 Archive</span>
-                </button>
-             </div>
-          </div>
               <!-- NEW BADGE FOR VOICE MEMO -->
                <div v-if="entry.type === 'voice_memo' || entry.type === 'standard' && entry.title?.includes('Voice Memo')" class="absolute top-6 right-6 px-3 py-1 bg-red-500/10 text-red-600 rounded-full text-[9px] font-black uppercase tracking-widest z-10 flex items-center gap-2">
                   <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
@@ -317,6 +383,7 @@ const confirmShare = async () => {
                     :cid="entry.metadata.certification_id"
                     :amaneLink="entry.metadata.amane_link"
                     :timestamp="new Date(entry.timestamp).toLocaleTimeString()"
+                    :visualImageUrl="entry.metadata.image"
                   />
                 </div>
   
@@ -402,6 +469,7 @@ const confirmShare = async () => {
         </div>
       </footer>
     </div>
+  </div>
 
     <MapShareModal 
         v-if="showMapModal" 
@@ -409,7 +477,25 @@ const confirmShare = async () => {
         @close="showMapModal = false"
         @confirm="confirmShare"
     />
-  </div>
+
+    <DiscoveryPanel
+        v-if="showDiscoveryPanel"
+        :isProcessing="isExtracting"
+        @extract-insights="handleExtractInsights"
+        @close="showDiscoveryPanel = false"
+        @extract="handleExtractInsights"
+    />
+
+    <!-- MERIDIEM TIMELINE OVERLAY -->
+    <Transition name="fade-scale">
+        <div v-if="isMeridiemOpen" class="fixed inset-0 z-[1000] p-12 flex flex-col items-center justify-center bg-black/40 backdrop-blur-3xl">
+            <MeridiemTimeline 
+                :initialContent="meridiemInitialContent"
+                @save="(val) => { emit('save-diary', val, { content: val, title: 'SYNC: Meridiem Timeline', type: 'diary' }); isMeridiemOpen = false; }"
+                @close="isMeridiemOpen = false"
+            />
+        </div>
+    </Transition>
 </template>
 
 <style>
@@ -427,5 +513,51 @@ const confirmShare = async () => {
 .list-leave-to {
   opacity: 0;
   transform: translateY(-30px);
+}
+
+/* Luxury & Integration Styles */
+.font-serif-luxury {
+    font-family: 'Cormorant Garamond', serif;
+}
+
+/* Animations */
+.fade-up-enter-active, .fade-up-leave-active {
+    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.fade-up-enter-from, .fade-up-leave-to {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.fade-scale-enter-active, .fade-scale-leave-active {
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fade-scale-enter-from, .fade-scale-leave-to {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+}
+
+/* Premium Button Pulsing */
+@keyframes pulse-subtle {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.05); }
+}
+@keyframes pulse-slow {
+    0%, 100% { box-shadow: 0 0 30px rgba(255, 255, 255, 0); }
+    50% { box-shadow: 0 0 30px rgba(255, 255, 255, 0.2); }
+}
+.animate-pulse-subtle {
+    animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.animate-pulse-slow {
+    animation: pulse-slow 4s ease-in-out infinite;
+}
+
+/* Premium Button Glows */
+.shadow-meridiem {
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 255, 255, 0.1);
+}
+.shadow-discovery {
+    box-shadow: 0 0 40px rgba(168, 85, 247, 0.3), 0 0 15px rgba(168, 85, 247, 0.2);
 }
 </style>

@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
+import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 // See: https://firebase.google.com/docs/web/setup#available-libraries
@@ -23,7 +24,7 @@ if (!isConfigured) {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-import { getFirestore } from "firebase/firestore";
 const firestore = getFirestore(app);
 
-export { db, firestore };
+const database = db;
+export { db, database, firestore };

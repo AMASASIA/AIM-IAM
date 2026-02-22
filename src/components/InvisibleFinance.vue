@@ -15,11 +15,22 @@ import {
   X
 } from 'lucide-vue-next';
 
+const props = defineProps({
+  intentCount: { type: Number, default: 0 }
+});
+
 const emit = defineEmits(['close']);
 
 const activeTab = ref('ledger'); // 'ledger' | 'sbt' | 'tickets' | 'biometrics'
-const soulBalance = ref(2440.85);
+const soulBalance = computed(() => (props.intentCount * 12.5).toFixed(2));
 const ticketCount = ref(5);
+
+const currentRank = computed(() => {
+    if (props.intentCount >= 100) return 'Amane Elite';
+    if (props.intentCount >= 50) return 'Semantic Architect';
+    if (props.intentCount >= 10) return 'Resonance Adept';
+    return 'Novice Responder';
+});
 
 const handlePurchaseTicket = () => {
   // Simulated Stripe Integration
@@ -59,14 +70,15 @@ const ledgerItems = ref([1, 2, 3, 4].map((i) => ({
       
       <div class="flex items-center gap-10">
         <div class="text-right">
-          <p class="text-[8px] font-black uppercase tracking-widest text-white/20 mb-1">Total Soul Balance</p>
+          <p class="text-[8px] font-black uppercase tracking-widest text-white/20 mb-1">Resonance Points</p>
           <p class="text-3xl font-mono-light tracking-tighter text-[#c0a080] flex items-center gap-2">
             <Coins :size="16" class="opacity-50" />
-            {{ soulBalance.toLocaleString() }} <span class="text-[10px] opacity-30">SOL</span>
+            {{ soulBalance }} <span class="text-[10px] opacity-30">RP</span>
           </p>
         </div>
-        <div class="w-14 h-14 rounded-full border border-white/5 flex items-center justify-center bg-white/[0.02] shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
-           <Crown :size="20" class="text-[#8b7e74]" />
+        <div class="space-y-1 text-right">
+            <p class="text-[8px] font-black uppercase tracking-widest text-teal-500 mb-1">Verified Intents</p>
+            <p class="text-2xl font-mono-light text-white/80">{{ intentCount }}</p>
         </div>
       </div>
     </header>
@@ -162,11 +174,11 @@ const ledgerItems = ref([1, 2, 3, 4].map((i) => ({
               <div class="grid grid-cols-2 gap-8 pt-10 border-t border-white/[0.05]">
                 <div class="space-y-2">
                   <p class="text-[8px] font-black uppercase text-white/20 tracking-widest">CDR Coefficient</p>
-                  <p class="text-2xl font-mono-light text-white/90">0.9842</p>
+                  <p class="text-2xl font-mono-light text-white/90">{{ (0.8 + (intentCount * 0.002)).toFixed(4) }}</p>
                 </div>
                 <div class="space-y-2">
                   <p class="text-[8px] font-black uppercase text-white/20 tracking-widest">Amane Rank</p>
-                  <p class="text-2xl font-mono-light text-[#c0a080]">Elite Tier</p>
+                  <p class="text-2xl font-mono-light text-[#c0a080]">{{ currentRank }}</p>
                 </div>
               </div>
             </div>

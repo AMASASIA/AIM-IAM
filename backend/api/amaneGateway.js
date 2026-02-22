@@ -28,7 +28,8 @@ const SYSTEM_PROMPT = `
 
 router.post('/mint-fact', async (req, res) => {
     try {
-        const { observerId, factData, secretKey, rawContent } = req.body;
+        const { observerId, targetWallet, factData, secretKey, rawContent, soulbound } = req.body;
+        const target = targetWallet || observerId || 'AMAS_NODE_GUEST';
 
         console.log(`[Amane L0] Processing Observation for: ${observerId}`);
 
@@ -53,10 +54,12 @@ router.post('/mint-fact', async (req, res) => {
 
         // 2. Minting Phase (Anchor Truth)
         const packet = amaneProtocol.mintOkeFact(
-            observerId || 'AMAS_NODE_GUEST',
+            target,
             analyzedFacts || {},
             secretKey || process.env.AMANE_SECRET || 'LOVE_OS_SECRET'
         );
+
+        if (soulbound) packet.payload.soulbound = true;
 
         res.json({
             status: 'success',

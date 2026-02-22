@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { processVoiceNote } from '../services/geminiService.js';
+import { processVoiceNote } from '../services/intentService.js';
 import { useNotifications } from './useNotifications';
 
 export function useAmasSecretary() {

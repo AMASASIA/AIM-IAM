@@ -152,7 +152,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { PhoneOff, Mic, MicOff, Video, VideoOff, ScanEye, Loader2, X, ShoppingBag } from 'lucide-vue-next';
-import { analyzeVisionCommerce } from '../services/geminiService';
+import { analyzeVisionCommerce } from '../services/intentService';
 import PrivacyCheckpoint from './PrivacyCheckpoint.vue';
 import AmasPrivacyFirewall from '../services/privacyFirewall';
 

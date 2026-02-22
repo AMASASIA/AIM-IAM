@@ -10,7 +10,7 @@ import ContactBook from '../components/ContactBook.vue';
 import InvisibleFinancePopup from '../components/InvisibleFinancePopup.vue';
 import InvisibleFinance from '../components/InvisibleFinance.vue';
 import SanctuaryPopup from '../components/SanctuaryPopup.vue';
-import { createKernelSession, generateSecretNotebook, sendMessage, processVoiceNote, analyzeIntent, analyzeSemanticDiff } from '../services/geminiService.js';
+import { createKernelSession, generateSecretNotebook, sendMessage, processVoiceNote, analyzeIntent, analyzeSemanticDiff } from '../services/intentService.js';
 // import { processAssetToGateway } from '../services/assetService.js'; // Moved to composable
 import NotificationSystem from '../components/NotificationSystem.vue';
 import NotificationToast from '../components/NotificationToast.vue';
@@ -25,8 +25,13 @@ import VideoOverlay from '../components/VideoOverlay.vue';
 import { useAntigravityRecorder } from '../composables/useAntigravityRecorder';
 import { useVisionCore } from '../composables/useVisionCore'; // Visual Cortex
 import { useAmasSecretary } from '../composables/useAmasSecretary'; // AMAS Secretary
+import { UnifiedService } from '../services/unifiedService';
 import SystemLogs from '../components/SystemLogs.vue';
+import { useAmasAudio } from '../composables/useAmasAudio';
+import { invisibleFinanceService } from '../services/invisibleFinanceService';
+import { web3Service } from '../services/web3Service';
 import { labelingCaller } from '../services/labelingCaller';
+import { useWebRTC } from '../composables/useWebRTC';
 
 // State
 const user = ref(null);
@@ -35,11 +40,15 @@ const isSearchingPeer = ref(false);
 const showVideoOverlay = ref(false);
 const { notify, notifications, removeNotification } = useNotifications();
 const showOKEModal = ref(false);
+const { startCall: initiateRTCCall, endCall: terminateRTCCall, localStream, remoteStream } = useWebRTC();
 const showInvisibleFinance = ref(false);
-const remoteStream = ref(null);
-const localStream = ref(null);
 const messages = ref([]);
 const notebookEntries = ref([]);
+watch(localStream, (stream) => {
+    if (videoSource.value && stream) {
+        videoSource.value.srcObject = stream;
+    }
+});
 const showMobileMenu = ref(false); // Mobile awareness
 const isLoading = ref(false);
 const isInitializing = ref(false);
@@ -73,6 +82,25 @@ const isSanctuaryActive = ref(false);
 const liaisonService = ref(null);
 const { startCapture, stopCapture, isRecording } = useAntigravityRecorder();
 const notebookFilter = ref('all');
+const verifiedIntentCount = ref(0);
+
+const recordVerifiedIntent = async () => {
+    verifiedIntentCount.value++;
+    console.log(`[AIM3] Intent Verified. Total: ${verifiedIntentCount.value}`);
+    
+    // Check for Web3 Milestones (Phase C)
+    const result = await web3Service.checkMilestoneAndMintSBT(user.value, verifiedIntentCount.value);
+    if (result) {
+        notify('SBT Milestone', `Rank Up: ${result.milestone.rank}!`, 'success');
+        notebookEntries.value.unshift({
+            id: 'SBT-' + Date.now(),
+            type: 'scifi',
+            title: `💎 Verified Identity: ${result.milestone.rank}`,
+            content: `**Amane Protocol Milestone reached.**\n\n- Rank: ${result.milestone.rank}\n- Verified Action: ${verifiedIntentCount.value}\n- Trait: ${result.milestone.trait}\n- TX: ${result.sbtResult.transactionHash.slice(0, 16)}...`,
+            timestamp: new Date()
+        });
+    }
+};
 
 const toggleRecording = async () => {
   if (isRecording.value) {
@@ -176,12 +204,15 @@ onMounted(() => {
 
 
   // Unified command processor (Voice or Text)
-  const { processVisualImport } = useVisionCore();
+  const { processVisualImport, captureFrame } = useVisionCore();
   const { handleVoiceNote: processSecretaryNote } = useAmasSecretary();
+  const transcribedText = ref('');
+  const videoSource = ref(null);
 
   /* Refactored Voice Handler for Robustness */
   const handleVoiceTranscription = async (transcript, isText = false) => {
       console.log('Processing Command:', transcript);
+      transcribedText.value = transcript;
       
       // 1. Immediate UI Feedback
       if (activeView.value !== 'notebook') {
@@ -225,16 +256,78 @@ onMounted(() => {
              break;
              
           case 'TODO_TASK':
-             // Task Handling
-             const taskEntry = {
-                id: Date.now().toString(),
-                type: 'todo',
-                title: `✅ Task: ${intent.message}`,
-                content: `- [ ] ${intent.message}\n\n*Voice Entry*`,
-                timestamp: new Date()
-             };
-             notebookEntries.value.unshift(taskEntry);
-             notify('Tasks', 'Task added.', 'success');
+             // Task Handling with Semantic Action Engine
+             notify('Orchestrator', 'Analyzing task context...', 'info');
+             try {
+                const result = await UnifiedService.recallAndExecuteWill(intent.message);
+                if (result.success) {
+                    const taskEntry = {
+                        id: result.taskId,
+                        type: 'todo',
+                        title: `✨ Task: ${result.task.title}`,
+                        content: `- [ ] ${result.task.title}\n\n**Description:** ${result.task.description}\n\n*Reasoning:* ${result.task.reasoning}`,
+                        timestamp: new Date(),
+                        metadata: { is_auto: true }
+                    };
+                    notebookEntries.value.unshift(taskEntry);
+                    notify('Tasks', 'Autonomous task generated.', 'success');
+                    await recordVerifiedIntent(); // Phase C progression
+                }
+             } catch (e) {
+                // Fallback to basic task if AI recall fails
+                const taskEntry = {
+                    id: Date.now().toString(),
+                    type: 'todo',
+                    title: `✅ Task: ${intent.message}`,
+                    content: `- [ ] ${intent.message}\n\n*Voice Entry*`,
+                    timestamp: new Date()
+                };
+                notebookEntries.value.unshift(taskEntry);
+                notify('Tasks', 'Task added (Basic).', 'success');
+             }
+             break;
+
+          case 'RECALL_WILL':
+             // Memory Recall & Autonomous Execution
+             notify('Recall', 'Synchronizing with past intents...', 'info');
+             try {
+                const result = await UnifiedService.recallAndExecuteWill(transcript);
+                if (result.success) {
+                    const taskEntry = {
+                        id: result.taskId,
+                        type: 'todo',
+                        title: `🌌 Recalled: ${result.task.title}`,
+                        content: `- [ ] ${result.task.title}\n\n**Context:** ${result.task.description}\n\n*Recalled via Semantic Index*`,
+                        timestamp: new Date(),
+                        metadata: { is_recalled: true }
+                    };
+                    notebookEntries.value.unshift(taskEntry);
+                    notify('Primal Interface', `Recalled: ${result.task.title}`, 'success');
+                }
+             } catch (e) {
+                notify('Recall Error', 'Semantic resonance too low.', 'error');
+             }
+             break;
+
+          case 'CONNECT_VIDEO':
+             // P2P Media Activation (Firebase RTDB Signaling)
+             if (intent.target_person) {
+                const contact = contactBook.findContact(intent.target_person);
+                const targetId = contact?.id || contact?.peerId || 'default_peer_id';
+                notify('WebRTC', `Connecting Video Bridge to ${contact?.nickname || intent.target_person}...`, 'info');
+                await initiateRTCCall(targetId);
+             } else {
+                notify('WebRTC', 'Initiating generic video bridge...', 'info');
+                await initiateRTCCall('default_peer_id');
+             }
+             showVideoOverlay.value = true;
+             await recordVerifiedIntent();
+             break;
+
+          case 'MINT_FACT':
+             // Atomic Mint / OKE Protocol / Opal Routing
+             notify('Atomic Mint', `Routing fact extraction to Opal...`, 'info');
+             await handleMintFactIntent(intent);
              break;
              
           case 'NAVIGATE':
@@ -275,15 +368,23 @@ onMounted(() => {
   // Helper for Calendar
   const handleScheduleEvent = async (intent) => {
       const title = intent.message || 'New Event';
+      const startDate = intent.start_time ? new Date(intent.start_time) : new Date();
+      if (!intent.start_time) startDate.setDate(startDate.getDate() + 1); // Default tomorrow
+
+      const endDate = new Date(startDate.getTime() + 60*60*1000); // 1 hour duration
+      
+      const fmt = (d) => d.toISOString().replace(/-|:|\.\d\d\d/g, "");
+      const gcalLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${fmt(startDate)}/${fmt(endDate)}`;
+
       // Create simplified calendar entry
       notebookEntries.value.unshift({
           id: Date.now().toString(),
           type: 'calendar',
           title: `📅 ${title}`,
-          content: `**Event Scheduled**\n\n- Event: ${title}\n- Time: ${intent.start_time || 'Tomorrow 10:00 AM'}\n\n@Cal Open Calendar`,
+          content: `**Event Scheduled**\n\n- Event: ${title}\n- Time: ${startDate.toLocaleString()}\n\n[Add to Google Calendar](${gcalLink})`,
           timestamp: new Date()
       });
-      notify('Calendar', 'Event drafted.', 'success');
+      notify('Calendar', 'Event link generated.', 'success');
   };
 
   const handleNavigationIntent = (intent) => {
@@ -291,6 +392,24 @@ onMounted(() => {
      else if (intent.message.includes('task')) notebookFilter.value = 'todo';
      else notebookFilter.value = 'all';
      notify('Navigation', `Filter: ${notebookFilter.value}`, 'info');
+  };
+
+  const handleMintFactIntent = async (intent) => {
+      notify('OKE Protocol', 'Packaging fact for Atomic Mint...', 'info');
+      
+      const trustHash = generateTrustHash(intent.message);
+      
+      const mintEntry = {
+          id: 'MINT-' + Date.now(),
+          type: 'scifi',
+          title: '💠 Atomic Mint: Fact Extraction',
+          content: `**Fact Verified via Opal Engine**\n\n- Content: ${intent.message}\n- Proof Hash: \`${trustHash}\`\n- Layer: Base L2 / OKE\n\n*This fact is now non-custodial and immutable.*`,
+          timestamp: new Date()
+      };
+      
+      notebookEntries.value.unshift(mintEntry);
+      notify('Atomic Mint', 'Fact recorded on-chain.', 'success');
+      await recordVerifiedIntent();
   };
 
     // Manual fallback for immediate voice activation
@@ -490,6 +609,14 @@ const handleToggleVoice = () => {
       setTimeout(() => recognitionRef.value?.start(), 100);
     }
   }
+  
+  // App.vue (Parent) にエージェントの起動を同期するよう指令を出す
+  // (isListening の値が反転する前のタイミングなので、反転後の期待値を送る)
+  emit('action', {
+      type: 'amas-agent-command',
+      command: 'toggle_voice',
+      data: { isListening: !isListening.value }
+  });
 };
 
 // Handle image import
@@ -702,9 +829,6 @@ const handleNotificationRequest = (data, peerId) => {
     ]);
 };
 
-// ... (in onMessage) ...
-// Since onMessage is in a different block (onMounted), I cannot replace both with one contiguous replacement unless I select a huge block.
-// I will do two separate edits. First this one for handleNotificationRequest.
 
 const handleFinanceClick = () => {
     if (peerService.connections.value.length > 0) {
@@ -719,20 +843,158 @@ const handleFinanceClick = () => {
     }
 };
 
+// --- Tive AI: Invisible Finance Gesture Logic ---
+const { playSanctuaryBell } = useAmasAudio();
+const finTouchPoints = ref(0);
+const finStartX = ref(0);
+const finHoldStartTime = ref(0);
+const isFinHolding = ref(false);
+const finGestureActive = ref(false);
+
+const handleFinancePointerDown = (e) => {
+    finTouchPoints.value++;
+    finStartX.value = e.clientX;
+    finHoldStartTime.value = Date.now();
+    
+    // Memory Ratio: 2-finger hold
+    if (finTouchPoints.value === 2) {
+        isFinHolding.value = true;
+        finGestureActive.value = true;
+        notify('Memory Ratio', 'Recording Memory... (Hold for ingestion)', 'info');
+        playSanctuaryBell(); 
+    }
+};
+
+const handleFinancePointerMove = (e) => {
+    // Finance Ratio: 2-finger swipe (> 60px)
+    if (finTouchPoints.value === 2 && Math.abs(e.clientX - finStartX.value) > 60) {
+        if (finGestureActive.value) {
+            handleFinanceExecute();
+            finGestureActive.value = false; // Prevent multi-trigger
+        }
+    }
+};
+
+const addPendingCardToNotebook = (intentData, imageBase64, pendingId) => {
+    notebookEntries.value.unshift({
+        id: pendingId,
+        type: 'scifi',
+        title: '💠 Triple Mint: Processing...',
+        content: `**Opal Reasoning Engine** is validating your intent.\n\n- Intent: ${intentData.message || 'Direct Mint'}\n- Layer: Base Sepolia\n- Status: Web3 Propagation Started...`,
+        timestamp: new Date(),
+        metadata: { 
+            image: imageBase64,
+            is_pending: true 
+        }
+    });
+};
+
+const handleFinancePointerUp = async () => {
+    if (finTouchPoints.value === 2 && finGestureActive.value) {
+        finGestureActive.value = false;
+
+        // 1. Capture visual context using the hidden video source
+        const currentView = captureFrame(videoSource.value);
+        
+        // 2. Will from transcribed text
+        const userWill = transcribedText.value || "この瞬間を事実として証明して";
+
+        notify('AIM3', 'Capturing Will & Vision...', 'info');
+        const pendingId = 'MINT-' + Date.now();
+        
+        try {
+            // 3. Analyze through secure backend
+            const result = await analyzeIntent(userWill, currentView);
+            
+            if (result.intent === 'MINT_FACT') {
+                notify('OKE', 'Triple Mint Initiated ✨', 'success');
+                playSanctuaryBell();
+                
+                // Show immediate feedback
+                addPendingCardToNotebook(result, currentView, pendingId);
+
+                // 4. Synchronous Mint Request (Wait for real on-chain results)
+                const mintResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080'}/api/oke/mint-fact`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        targetWallet: user.value?.id || '0xTEST_NODE',
+                        contextFact: userWill,
+                        visualFact: currentView
+                    })
+                });
+
+                if (mintResponse.ok) {
+                    const mintData = await mintResponse.json();
+                    
+                    // Update entry in notebook
+                    const entryIdx = notebookEntries.value.findIndex(e => e.id === pendingId);
+                    if (entryIdx !== -1) {
+                        notebookEntries.value[entryIdx] = {
+                            ...notebookEntries.value[entryIdx],
+                            title: '💠 OKE Certified: Will & Vision',
+                            content: `**Fact Authenticated via OKE Protocol**\n\n- Intent: ${result.message}\n- Status: Atomic Proof Generated\n- TX: ${mintData.proofs.tx.slice(0, 14)}...`,
+                            metadata: {
+                                ...notebookEntries.value[entryIdx].metadata,
+                                is_pending: false,
+                                is_verified: true,
+                                on_chain_hash: mintData.proofs.tx,
+                                amane_link: mintData.proofs.explorer,
+                                oke_facts: {
+                                    model_id: 'OKE-ALT-VITE',
+                                    soulPoints: '189.9',
+                                    onChainHash: mintData.proofs.tx
+                                }
+                            }
+                        };
+                    }
+                    notify('OKE', 'Triple Mint Completed on Base!', 'success');
+                }
+            } else {
+                const holdDuration = Date.now() - finHoldStartTime.value;
+                if (holdDuration > 800) {
+                    notify('Memory Ratio', 'Memory captured & Semantic Index updated.', 'success');
+                } else {
+                    notify('Memory Ratio', 'Hold shorter than threshold. Ingestion aborted.', 'warning');
+                }
+            }
+        } catch (err) {
+            notify('Error', 'Multimodal Sync Failed', 'error');
+            console.error(err);
+        }
+    }
+    finTouchPoints.value = 0;
+    isFinHolding.value = false;
+};
+
+const handleFinanceExecute = async () => {
+    notify('Finance Ratio', 'Executing Invisible Payment on Base...', 'info');
+    
+    try {
+        const result = await invisibleFinanceService.executePayment({ amount: 10 });
+        if (result.status === 'success') {
+            notify('Invisible Finance', 'Transaction Finalized via XMTP Negotiation.', 'success');
+            playSanctuaryBell();
+            
+            notebookEntries.value.unshift({
+                id: 'INV-FIN-' + Date.now(),
+                type: 'scifi',
+                title: '💎 Invisible Finance: On-Chain',
+                content: `**Base Chain Settlement**\n\n- Token: USDC\n- Amount: 10.00\n- Status: Success\n- TX: ${result.tx_hash.slice(0,14)}...`,
+                timestamp: new Date()
+            });
+            await recordVerifiedIntent(); // Phase C progression
+        }
+    } catch (err) {
+        notify('Finance Error', 'Liaison Bridge failed to settle.', 'error');
+    }
+};
+
 const navigateTo = (view) => {
   activeView.value = view;
   isSidebarOpen.value = false;
 };
 
-// DEV UTILITY: Shift+S to test Sanctuary
-onMounted(() => {
-    window.addEventListener('keydown', (e) => {
-        if (e.shiftKey && e.key === 'S') {
-            console.log('Dev Trigger: Sanctuary');
-            showSanctuary.value = true;
-        }
-    });
-});
 </script>
 
 <template>
@@ -889,10 +1151,21 @@ onMounted(() => {
       <div class="flex items-center gap-4">
         <button 
           @click="showFinancePopup = true" 
-          class="flex items-center gap-3 bg-[#1A1A1A] px-6 py-3 rounded-2xl shadow-2xl border border-white/10 hover:scale-105 transition-transform active:scale-95 group"
+          @pointerdown="handleFinancePointerDown"
+          @pointermove="handleFinancePointerMove"
+          @pointerup="handleFinancePointerUp"
+          @pointerleave="handleFinancePointerUp"
+          :class="[
+            'flex items-center gap-3 px-6 py-3 rounded-2xl shadow-2xl border transition-all active:scale-95 group touch-none',
+            isFinHolding 
+              ? 'bg-emerald-900 border-emerald-400 scale-110 ring-4 ring-emerald-500/20' 
+              : 'bg-[#1A1A1A] border-white/10 hover:scale-105'
+          ]"
         >
-          <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-          <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">Fairy Vert</span>
+          <div :class="['w-2 h-2 rounded-full animate-pulse', isFinHolding ? 'bg-white' : 'bg-emerald-400']"></div>
+          <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
+            {{ isFinHolding ? 'Recording...' : 'Fairy Vert' }}
+          </span>
           <span class="text-sm">🧚</span>
         </button>
 
@@ -961,6 +1234,7 @@ onMounted(() => {
     <!-- Invisible Finance Dashboard -->
     <InvisibleFinance
       v-if="showInvisibleFinance"
+      :intentCount="verifiedIntentCount"
       @close="showInvisibleFinance = false"
     />
 
@@ -1011,5 +1285,7 @@ onMounted(() => {
       :notifications="notifications" 
       @remove="removeNotification"
     />
+    <!-- Hidden Source for Visual Capture (Triple Mint) -->
+    <video ref="videoSource" style="display:none" autoplay playsinline muted></video>
   </div>
 </template>

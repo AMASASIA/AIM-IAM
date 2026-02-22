@@ -1,4 +1,4 @@
-import { analyzeSemanticDiff, analyzeIntent } from './geminiService';
+import { analyzeSemanticDiff, analyzeIntent } from './intentService';
 import contactBook from './contactBook';
 
 /**

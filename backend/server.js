@@ -23,6 +23,9 @@ app.use('/consensus', require('./api/consensus'));
 
 app.use('/opal', require('./api/opal_gateway'));
 app.use('/deployment', require('./api/deployment_gateway'));
+app.use('/api', require('./api/intent'));
+app.use('/api/finance', require('./api/finance'));
+app.use('/api/oke', require('./api/okeGateway'));
 
 // Short Link Handler (e.g., /f/abc12345) to avoid conflict with static files or other routes
 // Using a prefix /f/ for safety in this mono-repo setup

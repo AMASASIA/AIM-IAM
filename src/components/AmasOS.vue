@@ -23,6 +23,8 @@ const configuration = {
 const myId = ref(localStorage.getItem('aim3_did') || Math.random().toString(36).substr(2, 9));
 localStorage.setItem('aim3_did', myId.value); // Persist ID
 
+const emit = defineEmits(['action']);
+
 const roomId = ref('');
 const bridgeUrl = computed(() => {
     const baseUrl = window.location.origin + window.location.pathname;
@@ -50,17 +52,22 @@ const pendingPayload = ref(null);
 
 const showNotebook = ref(false);
 const showMobileChat = ref(false); // Mobile chat toggle
-const notebookEntries = ref(JSON.parse(localStorage.getItem('amas_notebook') || '[]'));
+const notebookEntries = ref(JSON.parse(localStorage.getItem('amas_notebook_v2') || '[]'));
 const isAiLoading = ref(false);
 
 const saveToNotebook = (entry) => {
-    notebookEntries.value.unshift({
+    if (!entry) return;
+    const finalEntry = {
         id: Math.random().toString(36).substr(2, 9),
-        timestamp: Date.now(),
-        ...entry
-    });
-    localStorage.setItem('amas_notebook', JSON.stringify(notebookEntries.value));
-    log(`Saved to Notebook: ${entry.title}`, 'success');
+        timestamp: new Date().toISOString(), // Use ISO string for consistency
+        type: entry.type || 'standard',
+        title: entry.title || 'Personal Note',
+        content: entry.content || (typeof entry === 'string' ? entry : ''),
+        metadata: entry.metadata || {}
+    };
+    notebookEntries.value.unshift(finalEntry);
+    localStorage.setItem('amas_notebook_v2', JSON.stringify(notebookEntries.value));
+    log(`Sync Reflect: ${finalEntry.title}`, 'success');
 };
 
 
@@ -566,6 +573,11 @@ onUnmounted(() => {
                 <NotebookView 
                     :user="{ id: myId, threadsId: anchorHandle, secretNotebook: 'Synchronized with Amas Core.' }"
                     :entries="notebookEntries"
+                    @save-diary="(content, entry) => saveToNotebook(entry || { content, title: 'Note' })"
+                    @update-filter="(f) => { /* Handle filter if needed */ }"
+                    @toggle-voice="$emit('action', { type: 'amas-agent-command', command: 'toggle_voice', data: { isListening: true } })"
+                    @action="(a) => $emit('action', a)"
+                    @notify="(title, msg, type) => log(`${title}: ${msg}`, type)"
                 />
             </div>
         </transition>

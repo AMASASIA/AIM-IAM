@@ -1,166 +1,145 @@
 <template>
-  <div class="oke-container">
+  <div class="silver-interface">
     
-    <!-- AUTH VIEW: Identity Nexus -->
-    <div v-if="viewState === 'login'" class="auth-wrapper">
-      <div class="auth-content">
-        <h1 class="auth-title font-serif-luxury text-6xl">OKE</h1>
-        
-        <div class="input-group">
-          <input 
-            v-model="email" 
-            type="email" 
-            placeholder="Enter your email" 
-            class="auth-input"
-            @keyup.enter="handleLogin"
-          />
-          <div class="input-icon">✉️</div>
-          <button class="email-login-btn" @click="handleLogin" v-if="email">→</button>
+    <!-- PHASE 1: IDENTITY LOGIN -->
+        <div v-if="viewState === 'login'" class="full-stage animate-fade-in">
+           <div class="vault-login">
+              <div class="identity-header">
+                 <h1 class="brand-title-oke">OKE</h1>
+                 <div class="tech-spec"><span class="atomic-small">Atomic Mint</span></div>
+              </div>
+              <div class="input-group-silver">
+                 <div class="input-wrapper">
+                    <input 
+                      v-model="identity" 
+                      type="email" 
+                      placeholder="Email Address" 
+                      class="silver-input"
+                      @keyup.enter="handleLogin"
+                    />
+                    <div class="silver-underline"></div>
+                 </div>
+              </div>
+              <button class="login-btn-silver" @click="handleLogin" v-if="identity">
+                ENTER
+              </button>
+           </div>
         </div>
 
-        <div class="divider">
-          <span>OR</span>
-        </div>
-
-        <!-- Wallet Connect (Gray Button) -->
-        <button class="wallet-btn" @click="handleLogin">
-          A\WALLET
-        </button>
-
-        <!-- Narrative Link (Bottom) -->
-        <div class="footer-link">
-          <a href="#" @click.prevent="handleLogin">Narrative</a>
-        </div>
-      </div>
-    </div>
-
-    <!-- APP VIEW: Atomic Mint Dashboard -->
-    <div v-else class="app-wrapper">
-      <div class="header">
-        <div class="brand font-serif-luxury">OKE <span class="text-xs ml-2 tracking-widest font-sans opacity-60">ATOMIC MINT</span></div>
-        <div class="nav-tabs">
-          <button :class="{ active: currentTab === 'generate' }" @click="currentTab = 'generate'">GENERATE</button>
-          <button :class="{ active: currentTab === 'treasury' }" @click="currentTab = 'treasury'">VAULT</button>
-          <button :class="{ active: currentTab === 'collection' }" @click="currentTab = 'collection'">MY COLLECTION</button>
-        </div>
-        <button class="logout-btn" @click="viewState = 'login'">Exit</button>
-      </div>
-
-      <!-- TAB: GENERATE OKE -->
-      <div v-if="currentTab === 'generate'" class="generate-view animate-fade-in-up">
-        <h2 class="section-title">Generate OKE</h2>
-        
-        <div class="upload-area">
-          <div class="preview-box">
-            <canvas ref="kaleidoscopeCanvas" width="120" height="120" class="kaleidoscope-canvas"></canvas>
-          </div>
-          
-          <input ref="fileInput" type="file" @change="handleFileSelect" style="display: none;">
-          <button class="action-btn" @click="triggerFileUpload">
-            {{ selectedFile ? selectedFile.name : 'Change File' }}
-          </button>
-          
-          <button class="action-btn" :class="{ recording: isRecording }" @click="toggleVoiceInput">
-            {{ isRecording ? 'Listening...' : 'Add Voice Input' }}
-          </button>
-        </div>
-
-        <div class="mint-options">
-          <p class="options-title">Options</p>
-          <label class="checkbox-row">
-            <input type="checkbox" checked>
-            <span class="checkmark"></span>
-            <div class="label-text">
-              <span class="main">Mint as NFT + SBT</span>
+        <!-- PHASE 2: SYSTEM INTERFACE -->
+        <div v-else class="system-interface">
+          <nav class="system-nav">
+            <div class="nav-brand-silver">OKE <span class="divider">/</span> <span class="status-active">SYNC</span></div>
+            <div class="nav-tabs">
+              <button :class="{ active: currentTab === 'generate' }" @click="currentTab = 'generate'">MINT</button>
+              <button :class="{ active: currentTab === 'collection' }" @click="currentTab = 'collection'">COLLECTION</button>
+              <button class="logout-link" @click="viewState = 'login'">EXIT</button>
             </div>
-          </label>
-          
-          <label class="checkbox-row">
-            <input type="checkbox" checked>
-            <span class="checkmark"></span>
-            <div class="label-text">
-              <span class="main">Create TBA Wallet</span>
-            </div>
-          </label>
-          
-          <p class="helper-text">
-            This will create a Soul-bound token tied to your identity and a Token-Bound Account for this OKE.
-          </p>
-        </div>
+          </nav>
 
-        <button class="mint-btn" @click="executeAtomicMint" :disabled="minting">
-          <span v-if="minting">INVOKING RITUAL...</span>
-          <span v-else>Atomic Mint</span>
-        </button>
-        
-        <div v-if="mintStatus" class="status-log">{{ mintStatus }}</div>
-      </div>
-
-      <!-- TAB: VAULT DASHBOARD -->
-      <div v-if="currentTab === 'treasury'" class="treasury-view animate-fade-in-up">
-        <h2 class="section-title">Vault Dashboard</h2>
-        <div v-if="!selectedTreasury" class="grid-layout">
-          <div v-for="t in treasuries" :key="t.id" class="treasury-card">
-            <div class="card-header">
-              <h3>Treasury {{ t.id }}</h3>
-            </div>
-            <div class="card-body">
-              <p><strong>Address:</strong> {{ t.address }}</p>
-              <p><strong>Balance:</strong> {{ t.balance }} ETH</p>
-              <p><strong>Members:</strong> {{ t.members }}</p>
-            </div>
-            <div class="card-footer">
-              <button class="open-btn" @click="selectedTreasury = t">Open</button>
-            </div>
-          </div>
-        </div>
-        
-        <div v-else class="detail-view">
-          <div class="detail-header">
-            <button class="back-btn" @click="selectedTreasury = null">← Back</button>
-            <h2>Treasury {{ selectedTreasury.id }} Details</h2>
-          </div>
-          
-          <div class="detail-grid">
-            <div class="panel">
-              <h3>Owners</h3>
-              <div class="owner-row">Alice (You)</div>
-              <div class="owner-row">Bob</div>
-              <div class="owner-row">Carol</div>
-            </div>
+          <!-- TAB: MINT (Vertical Forge) -->
+          <div v-if="currentTab === 'generate'" class="forge-container-vertical animate-fade-in-quick">
             
-            <div class="panel">
-              <h3>Pending Proposals</h3>
-              <div class="proposal-item">Transfer 10 ETH to 0x123...</div>
-              <div class="proposal-item">Add new owner: Dave</div>
+            <!-- Visual Core -->
+            <div class="visual-core-wrapper">
+              <div class="canvas-frame-silver">
+                 <canvas ref="kaleidoscopeCanvas" width="280" height="280" class="kaleidoscope-canvas"></canvas>
+              </div>
+            </div>
+
+            <!-- Forge Interface -->
+            <div class="forge-form-vertical">
+              <div class="type-selector-checks">
+                 <div 
+                   v-for="type in ['NFT', 'SBT', 'TBA']" 
+                   :key="type"
+                   @click="toggleType(type)"
+                   class="check-item"
+                   :class="{ active: selectedTypes.includes(type) }"
+                 >
+                   <span class="box">{{ selectedTypes.includes(type) ? '☑' : '☐' }}</span>
+                   <span class="label">{{ type }}</span>
+                 </div>
+              </div>
+
+          <div class="asset-details" v-if="selectedFile">
+             <div class="file-info-badge">
+                <span class="label">SOURCE:</span> {{ selectedFile.name }}
+             </div>
+          </div>
+
+          <div class="action-stack">
+             <input ref="fileInput" type="file" @change="handleFileSelect" style="display: none;">
+             
+             <div class="input-grid">
+                <button class="utility-btn-v" @click="triggerFileUpload">
+                  {{ selectedFile ? 'Asset Ready' : 'Upload Data' }}
+                </button>
+                <button class="utility-btn-v" :class="{ recording: isRecording }" @click="toggleVoiceInput">
+                  {{ isRecording ? 'Recording...' : 'Add Voice' }}
+                </button>
+             </div>
+
+             <div class="mint-execution-area">
+                <button class="mint-button-solid" @click="executeAtomicMint" :disabled="minting">
+                  <span v-if="!minting">MINT</span>
+                  <span v-else>Asseting...</span>
+                </button>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: COLLECTION -->
+      <div v-if="currentTab === 'collection'" class="collection-view-mobile animate-slide-up">
+        <div class="section-head">
+           <h2 class="head-title">Collection</h2>
+           <div class="head-stats">{{ collectionItems.length }} Assets Archived</div>
+        </div>
+
+        <div class="asset-list-vertical">
+          <div v-for="item in collectionItems" :key="item.id" class="asset-card-v" @click="showDetailedResult(item)">
+            <div class="card-preview">
+               <canvas :id="`canvas-${item.id}`" width="400" height="400" class="preview-canvas-v"></canvas>
+            </div>
+            <div class="card-meta">
+              <span class="card-uid">{{ item.id }}</span>
+              <h3 class="card-name">{{ item.name }}</h3>
+              <div class="card-badges">
+                <span v-for="t in item.types" :key="t" class="badge-v">{{ t }}</span>
+                <span class="badge-v verified">VERIFIED</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- TAB: MY COLLECTION -->
-      <div v-if="currentTab === 'collection'" class="collection-view animate-fade-in-up">
-        <div class="collection-grid">
-          <div v-for="item in collectionItems" :key="item.id" class="oke-card">
-            <div class="card-visual-area">
-              <canvas :id="`canvas-${item.id}`" width="280" height="280" class="item-canvas"></canvas>
+      <!-- SUCCESS MODAL: EMOTIONAL RESULT -->
+      <div v-if="showSuccess" class="success-overlay animate-fade-in" @click="showSuccess = false">
+         <div class="emotional-result-card" @click.stop>
+            <div class="result-glow"></div>
+            <div class="result-visual">
+               <canvas id="success-canvas" width="500" height="500"></canvas>
             </div>
-            <div class="card-info">
-              <div class="card-id">{{ item.id }}</div>
-              <h3 class="card-title">{{ item.name }}</h3>
-              <span class="card-type-badge">{{ item.type }}</span>
+            <div class="result-text">
+               <div class="success-label">CRYSTALLIZED</div>
+               <h2 class="success-name">{{ lastMinted?.name }}</h2>
+               <div class="success-hash">{{ lastMinted?.tx }}</div>
+               <button class="close-result" @click="showSuccess = false">CONTINUE</button>
             </div>
-          </div>
-        </div>
+         </div>
       </div>
 
-      <!-- RITUAL OVERLAY: DIVINE FORGE -->
-      <div v-if="minting" class="divine-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2147483647; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-        <canvas id="ritual-canvas" width="800" height="800" class="ritual-canvas"></canvas>
-        <div class="ritual-content">
-          <h2 class="ritual-title">ATOMIC MINT</h2>
-          <p class="ritual-subtitle">ALIGNING DIGITAL CONSTELLATIONS</p>
-          <div class="ritual-loader"></div>
+      <!-- RITUAL: ASSETING UI -->
+      <div v-if="minting" class="asseting-overlay">
+        <div class="asseting-core">
+           <div class="pulsing-sphere"></div>
+           <div class="asseting-text">Asseting...</div>
+           <div class="log-stream">
+              <p>Binding Atomic structure ({{ selectedTypes.join(' + ') }})...</p>
+              <p>Verifying identity anchor...</p>
+              <p>Establishing consensus...</p>
+           </div>
         </div>
       </div>
 
@@ -169,20 +148,42 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 
 // State
 const viewState = ref('login');
-const email = ref('');
+const identity = ref('');
 const currentTab = ref('generate');
 const minting = ref(false);
-const mintStatus = ref('');
-const selectedTreasury = ref(null);
+const showSuccess = ref(false);
+const selectedTypes = ref(['NFT', 'SBT', 'TBA']); // Multi-select enabled
+const lastMinted = ref(null);
+
 const kaleidoscopeCanvas = ref(null);
 const fileInput = ref(null);
 const selectedFile = ref(null);
 const isRecording = ref(false);
 const previewSeed = ref(1.0);
+
+const collectionItems = ref([
+  { id: 'OKE-A1', name: 'Original Genesis', seed: 1.2, types: ['NFT', 'SBT', 'TBA'] },
+  { id: 'OKE-B7', name: 'Identity Proof', seed: 0.8, types: ['SBT'] }
+]);
+
+const handleLogin = () => {
+  viewState.value = 'app';
+};
+
+const toggleType = (type) => {
+    const index = selectedTypes.value.indexOf(type);
+    if (index > -1) {
+        if (selectedTypes.value.length > 1) {
+            selectedTypes.value.splice(index, 1);
+        }
+    } else {
+        selectedTypes.value.push(type);
+    }
+};
 
 const triggerFileUpload = () => fileInput.value?.click();
 const handleFileSelect = (e) => {
@@ -192,795 +193,257 @@ const handleFileSelect = (e) => {
     }
 };
 const toggleVoiceInput = () => isRecording.value = !isRecording.value;
-const collectionItems = ref([
-  { id: 'OKE-001-FIB', name: 'Golden Spiral', type: 'NFT', seed: 1.2 },
-  { id: 'OKE-002-LOG', name: 'Logarithmic', type: 'SBT', seed: 0.8 },
-  { id: 'OKE-003-VOID', name: 'Void Singularity', type: 'TBA', seed: 1.5 }
-]);
 
-const treasuries = ref([
-    { id: 'A', address: '0xAbCd...097', balance: '1200.00', members: 3 },
-    { id: 'B', address: '0xAbCd...197', balance: '1237.00', members: 3 },
-    { id: 'C', address: '0xAbCd...297', balance: '1274.00', members: 3 },
-    { id: 'D', address: '0xAbCd...397', balance: '1311.00', members: 3 },
-    { id: 'E', address: '0xAbCd...497', balance: '1348.00', members: 3 },
-    { id: 'F', address: '0xAbCd...597', balance: '1385.00', members: 3 },
-]);
-
-// Actions
-const handleLogin = () => {
-  viewState.value = 'app';
+const executeAtomicMint = async () => {
+    if (minting.value) return;
+    minting.value = true;
+    
+    // Simulate Asseting process
+    setTimeout(async () => {
+        const tx = "0x" + Math.random().toString(16).slice(2, 10).toUpperCase();
+        const newItem = {
+            id: 'OKE-' + Date.now().toString(16).slice(-4).toUpperCase(),
+            name: selectedFile.value ? selectedFile.value.name : 'Atomic Fact',
+            seed: previewSeed.value + Math.random(),
+            types: [...selectedTypes.value],
+            tx: tx
+        };
+        
+        lastMinted.value = newItem;
+        collectionItems.value.unshift(newItem);
+        minting.value = false;
+        
+        // Emotional Transition
+        await nextTick();
+        showSuccess.value = true;
+        drawSuccessVisual();
+    }, 3500);
 };
 
-// CK Logic: Luxury Fibonacci Kaleidoscope
-const drawFibonacciKaleidoscope = (ctx, config) => {
+// Physics Painting
+const drawPhysic = (ctx, config) => {
   const phi = 1.61803398875;
   const { symmetry, color, lineWeight } = config;
-  const width = ctx.canvas.width;
-  const height = ctx.canvas.height;
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
+  const cx = ctx.canvas.width / 2;
+  const cy = ctx.canvas.height / 2;
+  const maxR = Math.sqrt(cx*cx + cy*cy);
 
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWeight;
-  
-  ctx.shadowBlur = 4;
-  ctx.shadowColor = color; 
 
   for (let i = 0; i < symmetry; i++) {
     ctx.save();
-    ctx.translate(centerX, centerY);
+    ctx.translate(cx, cy);
     ctx.rotate((Math.PI * 2 / symmetry) * i);
-    
     ctx.beginPath();
-
     let r = 2;
-    let prevX = r; 
-    let prevY = 0;
-    
+    let px = 2, py = 0;
     const k = Math.log(phi) / (Math.PI / 2);
-
-    for (let theta = 0; theta < Math.PI * 4; theta += 0.05) {
-      const currentR = r * Math.exp(k * theta);
-      
-      const x = currentR * Math.cos(theta);
-      const y = currentR * Math.sin(theta);
-      
-      if (currentR > maxRadius * 0.8) break;
-
-      ctx.moveTo(prevX, prevY);
+    for (let t = 0; t < Math.PI * 5; t += 0.1) {
+      const currentR = r * Math.exp(k * t);
+      const x = currentR * Math.cos(t);
+      const y = currentR * Math.sin(t);
+      if (currentR > maxR) break;
+      ctx.moveTo(px, py);
       ctx.lineTo(x, y);
-      
-      prevX = x;
-      prevY = y;
+      px = x; py = y;
     }
     ctx.stroke();
     ctx.restore();
   }
 };
 
-const executeAtomicMint = async () => {
-    if (minting.value) return;
-    minting.value = true;
-    
-    console.log("MINTING SEQUENCE INITIATED");
-
-    const ritualPromise = new Promise(resolve => setTimeout(resolve, 4000));
-    
-    try {
-        const fetchPromise = fetch('http://localhost:3000/atomicMint', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                address: '0xUserWalletAddress', 
-                metadata: {
-                    name: 'OKE GENESIS',
-                    description: 'Generated via OKE Atomic Interface',
-                    location: 'Tokyo/Digital'
-                },
-                rally: { status: 'active' },
-                aiLog: { energyScore: 0.98 }
-            })
-        })
-        .then(r => r.json())
-        .catch(() => ({ 
-            success: true, 
-            forcedMock: true,
-            transaction: { tx: '0xSIMULATED_TX_HASH_' + Date.now() },
-            ipfs: { url: 'ipfs://QmSimulatedHash' } 
-        }));
-
-        const [_, data] = await Promise.all([ritualPromise, fetchPromise]);
-        
-        if (data.success) {
-             console.log("MINT SUCCESS", data);
-             mintStatus.value = `Success! TX: ${data.transaction.tx.substring(0, 10)}...`;
-             
-             const newId = `OKE-${Math.floor(Math.random()*9000)+1000}-GEN`;
-             const newCard = {
-                id: newId,
-                name: 'Atomic Genesis',
-                type: 'ATOMIC',
-                seed: isRecording.value ? previewSeed.value + 0.5 : previewSeed.value + Math.random()
-             };
-             
-             collectionItems.value = [newCard, ...collectionItems.value];
-             
-             currentTab.value = 'collection';
-        }
-
-    } catch (e) {
-        console.error("Critical Mint Error:", e);
-    } finally {
-        minting.value = false;
-    }
+const drawSuccessVisual = () => {
+    const el = document.getElementById('success-canvas');
+    if (!el) return;
+    const ctx = el.getContext('2d');
+    const draw = () => {
+        if (!showSuccess.value) return;
+        const t = Date.now() * 0.001;
+        ctx.clearRect(0,0,500,500);
+        ctx.save();
+        ctx.translate(250,250);
+        ctx.rotate(t * 0.5);
+        drawPhysic(ctx, { symmetry: 24, color: 'rgba(255,255,255,0.15)', lineWeight: 0.5 });
+        ctx.restore();
+        requestAnimationFrame(draw);
+    };
+    draw();
 };
 
-onMounted(async () => {
-    try {
-        const res = await fetch('http://localhost:3000/atomicMint/pins').catch(()=>null);
-        if (res && res.ok) {
-            const pins = await res.json();
-            if (Array.isArray(pins)) {
-                pins.forEach(pin => {
-                     if (!collectionItems.value.find(i => i.id === pin.tx)) {
-                         collectionItems.value.push({
-                            id: pin.tx ? pin.tx.substring(0,8) : 'LEGACY',
-                            name: 'Ledger Asset',
-                            type: 'CHAIN',
-                            seed: pin.energy ? Number(pin.energy) + 1 : 1.5
-                         });
-                     }
-                });
-            }
-        }
-    } catch(e) { console.log("Persistence skip"); }
+onMounted(() => {
+    const loop = () => {
+        const t = Date.now() * 0.0003;
 
-    const animate = () => {
-        const time = Date.now() * 0.0005;
-
-        if (minting.value) {
-             const ritualEl = document.getElementById('ritual-canvas');
-             if (ritualEl) {
-                 const ctx = ritualEl.getContext('2d');
-                 ctx.clearRect(0,0, ritualEl.width, ritualEl.height);
-                 
-                 const g = ctx.createRadialGradient(400,400, 10, 400,400, 600);
-                 g.addColorStop(0, '#222'); g.addColorStop(1, '#000');
-                 ctx.fillStyle = g; ctx.fillRect(0,0,800,800);
-                 
-                 ctx.save();
-                 ctx.translate(400,400);
-                 ctx.rotate(time * 3.0);
-                 ctx.translate(-400,-400);
-                 if (typeof drawFibonacciKaleidoscope === 'function') {
-                    drawFibonacciKaleidoscope(ctx, { symmetry: 24, color: '#D4AF37', lineWeight: 1.5 });
-                 }
-                 ctx.restore();
-             }
-        }
-
-        else if (kaleidoscopeCanvas.value && currentTab.value === 'generate') {
-             const currentSeed = isRecording.value ? previewSeed.value + Math.sin(time * 10) * 0.5 : previewSeed.value;
-             renderKaleidoscope(kaleidoscopeCanvas.value, time, currentSeed);
-        }
-
-        else if (currentTab.value === 'collection') {
-             collectionItems.value.forEach(item => {
-                 const el = document.getElementById(`canvas-${item.id}`);
-                 if (el) renderKaleidoscope(el, time, item.seed);
-             });
-        }
-        
-        requestAnimationFrame(animate);
-    };
-
-    const renderKaleidoscope = (canvas, time, seed) => {
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
-        
-        ctx.clearRect(0, 0, width, height);
-        
-        const gradient = ctx.createRadialGradient(width/2, height/2, 10, width/2, height/2, width/2);
-        gradient.addColorStop(0, '#1a1a1a');
-        gradient.addColorStop(1, '#000000');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, height);
-        
-        ctx.save();
-        ctx.translate(width/2, height/2);
-        ctx.rotate(time * 0.2 * Math.sqrt(seed)); 
-        ctx.translate(-width/2, -height/2);
-
-        if (typeof drawFibonacciKaleidoscope === 'function') {
-            drawFibonacciKaleidoscope(ctx, {
-                symmetry: Math.floor(12 * seed) || 6, 
-                color: '#D4AF37',
-                lineWeight: 0.8
+        if (kaleidoscopeCanvas.value && currentTab.value === 'generate') {
+            const ctx = kaleidoscopeCanvas.value.getContext('2d');
+            ctx.clearRect(0,0,280,280);
+            ctx.save();
+            ctx.translate(140,140);
+            ctx.rotate(t);
+            drawPhysic(ctx, { symmetry: 10, color: 'rgba(210, 215, 211, 0.4)', lineWeight: 1 });
+            ctx.restore();
+        } else if (currentTab.value === 'collection') {
+            collectionItems.value.forEach(item => {
+                const el = document.getElementById(`canvas-${item.id}`);
+                if (el) {
+                    const ctx = el.getContext('2d');
+                    ctx.clearRect(0,0,400,400);
+                    ctx.save();
+                    ctx.translate(200,200);
+                    ctx.rotate(t * 0.3 * item.seed);
+                    drawPhysic(ctx, { symmetry: 8, color: 'rgba(255,255,255,0.2)', lineWeight: 0.8 });
+                    ctx.restore();
+                }
             });
         }
-        
-        ctx.restore();
+        requestAnimationFrame(loop);
     };
-
-    animate();
+    loop();
 });
-
 </script>
 
 <style scoped>
-.checkbox-row input {
-  display: none !important;
-}
+@import url('https://fonts.cdnfonts.com/css/chomsky');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=JetBrains+Mono:wght@300;500&family=Outfit:wght@200;400;700&display=swap');
 
-
-.kaleidoscope-canvas {
-  width: 100%;
-  height: 100%;
-  border-radius: 12px;
-}
-
-
-/* RITUAL OVERLAY CSS - DIVINE FORGE */
-.divine-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: #000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: #D4AF37;
-    animation: fadeIn 0.5s ease-out;
-}
-
-.ritual-canvas {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-.ritual-content {
-    position: relative;
-    z-index: 10;
-    text-align: center;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(8px);
-    padding: 60px;
-    border-radius: 50%;
-    border: 1px solid rgba(212, 175, 55, 0.4);
-    box-shadow: 0 0 50px rgba(212, 175, 55, 0.2);
-}
-
-.ritual-title {
-    font-size: 3rem;
-    font-family: 'Times New Roman', serif;
-    letter-spacing: 8px;
-    margin-bottom: 12px;
-    animation: pulseGlow 2s infinite ease-in-out;
-    text-transform: uppercase;
-}
-
-.ritual-subtitle {
-    font-size: 0.9rem;
-    letter-spacing: 4px;
-    color: #aaa;
-    font-family: 'Courier New', monospace;
-}
-
-.ritual-loader {
-    width: 60px;
-    height: 2px;
-    background: #D4AF37;
-    margin: 30px auto 0;
-    animation: expandWidth 2s infinite ease-in-out;
-}
-
-@keyframes pulseGlow {
-    0% { text-shadow: 0 0 10px rgba(212, 175, 55, 0.2); opacity: 0.8; }
-    50% { text-shadow: 0 0 40px rgba(212, 175, 55, 0.8), 0 0 20px #fff; opacity: 1; scale: 1.05; }
-    100% { text-shadow: 0 0 10px rgba(212, 175, 55, 0.2); opacity: 0.8; }
-}
-
-@keyframes expandWidth {
-    0% { width: 0; opacity: 0; }
-    50% { width: 100px; opacity: 1; }
-    100% { width: 0; opacity: 0; }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-/* OKE CARD COLLECTION DESIGN */
-.collection-view {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.collection-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 32px;
-  padding: 40px 0;
-}
-
-.oke-card {
-  background: linear-gradient(135deg, rgba(30, 30, 30, 0.9) 0%, rgba(10, 10, 10, 1) 100%);
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  border-radius: 20px;
-  overflow: hidden;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.oke-card:hover {
-  transform: translateY(-12px) scale(1.02);
-  border-color: rgba(212, 175, 55, 0.8);
-  box-shadow: 0 20px 40px rgba(212, 175, 55, 0.15);
-}
-
-.card-visual-area {
-  width: 100%;
-  aspect-ratio: 1;
+.silver-interface {
   background: #000;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.1);
-}
-
-.item-canvas {
-    width: 100%;
-    height: 100%;
-}
-
-.card-info {
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.card-id {
-  color: #D4AF37;
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  letter-spacing: 1px;
-  margin-bottom: 6px;
-}
-
-.card-title {
   color: #fff;
-  font-size: 1.1rem;
-  margin: 0 0 8px 0;
-  font-weight: 300;
-}
-
-.card-type-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  background: rgba(212, 175, 55, 0.1);
-  color: #D4AF37;
-  border: 0.5px solid #D4AF37;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: bold;
-}
-
-.oke-container {
   min-height: 100vh;
-  background: #000;
-  color: #fff;
-  font-family: 'Inter', sans-serif;
-  display: flex;
-  flex-direction: column;
+  font-family: 'Outfit', sans-serif;
+  padding-bottom: 40px;
 }
 
-/* AUTH STYLES */
-.auth-wrapper {
-  flex: 1;
+/* AUTH */
+.full-stage { height: 100vh; display: flex; align-items: center; justify-content: center; }
+.vault-login { text-align: center; width: 100%; max-width: 320px; }
+
+.brand-title-oke { 
+  font-family: 'Cinzel', serif; 
+  font-size: 4rem; 
+  letter-spacing: 10px; 
+  color: #fff; 
+  margin-bottom: 5px; 
+  text-shadow: 0 0 40px rgba(255,255,255,0.1);
+}
+
+.tech-spec { 
+  font-family: 'JetBrains Mono', monospace; 
+  font-size: 0.6rem; 
+  color: #666; 
+  letter-spacing: 2px; 
+  margin-bottom: 40px; 
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000;
+  gap: 10px;
 }
 
-.auth-content {
-  width: 100%;
-  max-width: 320px;
-  text-align: center;
+.atomic-small {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #aaa;
+  border-left: 1px solid #333;
+  padding-left: 10px;
+  letter-spacing: 1px;
+}
+
+.silver-input { width: 100%; background: transparent; border: none; padding: 15px 0; color: #fff; text-align: center; font-family: 'JetBrains Mono', monospace; outline: none; }
+.silver-underline { height: 1px; background: linear-gradient(90deg, transparent, #c0c0c0, transparent); }
+.login-btn-silver { border: 1px solid #c0c0c0; background: transparent; color: #fff; padding: 10px 40px; font-size: 0.75rem; letter-spacing: 2px; margin-top: 30px; cursor: pointer; }
+
+/* NAV */
+.system-nav { display: flex; justify-content: space-between; align-items: center; padding: 30px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.nav-brand-silver { font-family: 'Cinzel', serif; font-size: 1.4rem; letter-spacing: 2px; }
+.nav-tabs { display: flex; gap: 20px; }
+.nav-tabs button { background: none; border: none; color: #666; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.75rem; letter-spacing: 1px; cursor: pointer; }
+.nav-tabs button.active { color: #fff; border-bottom: 1px solid #fff; }
+
+/* VERTICAL FORGE */
+.forge-container-vertical { display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+.visual-core-wrapper { margin-bottom: 40px; }
+.canvas-frame-silver { padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; }
+
+.forge-form-vertical { width: 100%; max-width: 340px; }
+
+.type-selector-checks {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   gap: 20px;
-}
-
-.auth-title {
-  margin-bottom: 20px;
-}
-
-.input-group {
-  position: relative;
-  width: 100%;
-}
-
-.auth-input {
-  width: 100%;
-  background: #1a1a1a;
-  border: 1px solid #333;
-  color: #ccc;
-  padding: 12px 60px 12px 15px;
-  border-radius: 6px;
-  outline: none;
-  font-size: 0.9rem;
-}
-
-.auth-input:focus { border-color: #555; }
-
-.input-icon {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0.5;
-}
-
-.email-login-btn {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  color: white;
-  border: 1px solid #333;
-  padding: 4px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.email-login-btn:hover { background: #333; }
-
-.divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #555;
-  font-size: 0.75rem;
-  margin: 10px 0;
-}
-
-.divider::before, .divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: #333;
-  margin: 0 10px;
-}
-
-.wallet-btn {
-  background: #4b5563;
-  color: white;
-  border: none;
-  padding: 12px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.wallet-btn:hover { background: #374151; }
-
-.footer-link { margin-top: 30px; }
-.footer-link a {
-  color: #888;
-  text-decoration: underline;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-/* APP STYLES */
-.app-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-  background: #000;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #222;
   margin-bottom: 30px;
 }
 
-.brand { font-size: 1.5rem; }
-
-.nav-tabs {
-    display: flex;
-    gap: 20px;
-}
-
-.nav-tabs button {
-    background: none;
-    border: none;
-    color: #666;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 0.9rem;
-    padding-bottom: 5px;
-    border-bottom: 2px solid transparent;
-    transition: all 0.3s;
-}
-
-.nav-tabs button.active {
-    color: #fff;
-    border-bottom: 2px solid #fff;
-}
-
-.logout-btn {
-  background: none;
-  border: 1px solid #333;
-  color: #888;
-  padding: 4px 12px;
-  border-radius: 4px;
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
-  font-size: 0.75rem;
+  opacity: 0.4;
+  transition: 0.3s;
 }
 
-/* GENERATE VIEW */
-.generate-view {
-    max-width: 400px;
-    margin: 0 auto;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    align-items: center;
+.check-item.active {
+  opacity: 1;
 }
 
-.section-title {
-    font-size: 1.8rem;
-    font-weight: 300;
-    margin-bottom: 20px;
+.check-item .box {
+  font-size: 1rem;
+  color: #fff;
 }
 
-.upload-area {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
+.check-item .label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
-.preview-box {
-    width: 120px;
-    height: 120px;
-    background: #fff;
-    border-radius: 12px;
-    margin: 0 auto 10px auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-}
+.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.utility-btn-v { background: rgba(255,255,255,0.03); border: 1px solid #222; color: #888; padding: 12px; font-size: 0.7rem; cursor: pointer; }
+.mint-button-solid { width: 100%; padding: 20px; background: #fff; color: #000; border: none; font-weight: 700; letter-spacing: 4px; cursor: pointer; margin-top: 10px; }
+.mint-button-solid:active { transform: scale(0.98); }
 
-.action-btn {
-    width: 100%;
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #333;
-    background: #111;
-    color: #ccc;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s;
-}
+/* ASSETING OVERLAY */
+.asseting-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.asseting-core { text-align: center; }
+.pulsing-sphere { width: 40px; height: 40px; background: #fff; border-radius: 50%; margin: 0 auto 20px auto; animation: pulse-sphere 1.5s infinite alternate ease-in-out; }
+.asseting-text { font-family: 'Chomsky', serif; font-size: 1.8rem; letter-spacing: 2px; margin-bottom: 30px; }
+.log-stream { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #444; line-height: 2.5; }
 
-.action-btn:hover { background: #222; border-color: #555; }
+@keyframes pulse-sphere { from { transform: scale(1); box-shadow: 0 0 10px #fff; } to { transform: scale(1.4); box-shadow: 0 0 40px #fff; } }
 
-.action-btn.recording {
-    border-color: #ef4444;
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
-    animation: pulse 1.5s infinite;
-}
+/* SUCCESS MODAL */
+.success-overlay { position: fixed; inset: 0; background: #000; z-index: 2000; display: flex; align-items: center; justify-content: center; }
+.emotional-result-card { position: relative; text-align: center; width: 100%; max-width: 500px; }
+.result-visual { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: -1; }
+.result-text { padding: 40px; }
+.success-label { font-size: 0.6rem; letter-spacing: 4px; color: #666; margin-bottom: 10px; }
+.success-name { font-family: 'Chomsky', serif; font-size: 3rem; margin-bottom: 20px; text-shadow: 0 0 20px rgba(255,255,255,0.4); }
+.success-hash { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #444; margin-bottom: 60px; }
+.close-result { background: #fff; color: #000; padding: 12px 30px; border: none; font-weight: 700; font-size: 0.7rem; letter-spacing: 2px; cursor: pointer; }
 
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
-}
+/* COLLECTION MOBILE */
+.collection-view-mobile { padding: 40px 20px; }
+.section-head { margin-bottom: 40px; }
+.head-title { font-family: 'Chomsky', serif; font-size: 2.5rem; margin-bottom: 5px; }
+.head-stats { font-size: 0.7rem; color: #555; letter-spacing: 1px; }
 
-.mint-options {
-    width: 100%;
-    background: #000;
-    padding: 10px 0;
-}
+.asset-list-vertical { display: flex; flex-direction: column; gap: 30px; }
+.asset-card-v { background: #050505; border: 1px solid #111; overflow: hidden; }
+.card-preview { aspect-ratio: 16/9; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.preview-canvas-v { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; }
+.card-meta { padding: 20px; }
+.card-uid { font-family: 'JetBrains Mono', monospace; font-size: 0.5rem; color: #333; }
+.card-name { font-size: 1rem; font-weight: 400; margin: 5px 0 15px 0; }
+.card-badges { display: flex; gap: 8px; }
+.badge-v { border: 1px solid #222; font-size: 0.5rem; padding: 2px 8px; color: #555; }
+.badge-v.verified { color: #888; border-color: #444; }
 
-.options-title {
-    font-size: 0.9rem;
-    color: #888;
-    margin-bottom: 15px;
-}
+/* ANIMATIONS */
+.animate-fade-in { animation: fadeIn 1.5s; }
+.animate-fade-in-quick { animation: fadeIn 0.6s; }
+.animate-slide-up { animation: slideUp 0.8s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-.checkbox-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-    cursor: pointer;
-}
-
-.checkbox-row input {
-    display: none;
-}
-
-.checkmark {
-    width: 18px;
-    height: 18px;
-    background: #2563eb;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.checkmark::after {
-    content: '✓';
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.label-text .main {
-    font-size: 0.95rem;
-    color: #fff;
-}
-
-.helper-text {
-    font-size: 0.7rem;
-    color: #555;
-    margin-top: 10px;
-    line-height: 1.4;
-}
-
-.mint-btn {
-    width: 100%;
-    padding: 14px;
-    background: #10b981;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    font-size: 1rem;
-    cursor: pointer;
-    margin-top: 10px;
-}
-
-.mint-btn:disabled { opacity: 0.7; }
-
-/* TREASURY VIEW */
-.treasury-view {
-    width: 100%;
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-.grid-layout {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
-}
-
-.treasury-card {
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 12px;
-    padding: 20px;
-}
-
-.card-header h3 {
-    margin: 0 0 15px 0;
-    font-size: 1rem;
-    color: #888;
-}
-
-.card-body {
-    margin-bottom: 20px;
-}
-
-.card-body p {
-    margin: 5px 0;
-    font-size: 0.9rem;
-}
-
-.card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.open-btn {
-    background: transparent;
-    border: 1px solid #333;
-    color: #ccc;
-    padding: 4px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8rem;
-}
-
-.open-btn:hover { background: #222; }
-
-/* TREASURY DETAIL */
-.detail-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 30px;
-}
-
-.back-btn {
-    background: none;
-    border: none;
-    color: #666;
-    cursor: pointer;
-}
-
-.detail-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-
-.panel {
-    background: #0a0a0a;
-    border: 1px solid #222;
-    border-radius: 12px;
-    padding: 20px;
-}
-
-.panel h3 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    font-size: 0.9rem;
-    color: #888;
-}
-
-.owner-row, .proposal-item {
-    padding: 10px;
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 6px;
-    margin-bottom: 10px;
-}
 </style>

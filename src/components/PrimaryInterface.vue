@@ -60,7 +60,7 @@ onUnmounted(() => {
     <!-- Top Horizontal Header -->
     <div class="absolute top-32 md:top-40 text-center pointer-events-none select-none">
       <p class="text-[11px] font-black uppercase tracking-[0.8em] text-black/20 mb-8 md:mb-12">SECTOR IDENTIFIER</p>
-      <h1 class="text-7xl md:text-9xl font-bold tracking-tighter uppercase mb-4 text-[#1A1A1A]">Primary Interface</h1>
+      <h1 class="text-7xl md:text-9xl font-bold tracking-tighter uppercase mb-4 text-[#1A1A1A]">Primal Interface</h1>
     </div>
 
     <!-- Center Voice Input -->

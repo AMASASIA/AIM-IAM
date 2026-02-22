@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { analyzeImage } from '../services/geminiService.js';
+import { analyzeImage } from '../services/intentService.js';
 import { processAssetToGateway } from '../services/assetService.js';
 import { useNotifications } from './useNotifications.js';
 
@@ -61,9 +61,23 @@ export function useVisionCore() {
         }
     };
 
+    const captureFrame = (videoElement: HTMLVideoElement | null) => {
+        if (!videoElement) return null;
+        const canvas = document.createElement('canvas');
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.drawImage(videoElement, 0, 0);
+            return canvas.toDataURL('image/jpeg', 0.8);
+        }
+        return null;
+    };
+
     return {
         isAnalyzing,
         analysisResult,
-        processVisualImport
+        processVisualImport,
+        captureFrame
     };
 }
