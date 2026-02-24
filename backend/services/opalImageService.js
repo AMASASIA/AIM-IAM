@@ -2,9 +2,21 @@ const OpenAI = require('openai');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY,
-});
+let openai = null;
+
+function getOpenAIClient() {
+    if (openai) return openai;
+
+    const apiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
+    if (!apiKey) {
+        return null;
+    }
+
+    openai = new OpenAI({
+        apiKey: apiKey,
+    });
+    return openai;
+}
 
 /**
  * OPAL Image Generation Service
@@ -24,13 +36,13 @@ async function generateOpalMasterpiece(base64Image, physics, contextName) {
     Style: Minimalist Liquid Silver, meditative 432Hz visualization, high contrast, 8k resolution.`;
 
     try {
-        // Fallback check if no API key
-        if (!process.env.OPENAI_API_KEY && !process.env.VITE_OPENAI_API_KEY) {
+        const client = getOpenAIClient();
+        if (!client) {
             console.warn("[OPAL] No OpenAI Key. Using Enhanced Canvas Mock.");
             return null; // Let the frontend fallback or the backend return a high-quality static asset
         }
 
-        const response = await openai.images.generate({
+        const response = await client.images.generate({
             model: "dall-e-3",
             prompt: prompt,
             n: 1,
