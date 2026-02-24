@@ -12,7 +12,15 @@ import {
   Zap,
   CreditCard,
   Crown,
-  X
+  X,
+  Wallet,
+  Globe,
+  Activity,
+  UserCheck,
+  TrendingUp,
+  ShoppingCart,
+  BarChart3,
+  Terminal
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -21,9 +29,37 @@ const props = defineProps({
 
 const emit = defineEmits(['close']);
 
-const activeTab = ref('ledger'); // 'ledger' | 'sbt' | 'tickets' | 'biometrics'
+const activeTab = ref('ledger'); // 'ledger' | 'sbt' | 'tickets' | 'biometrics' | 'awallet' | 'market'
 const soulBalance = computed(() => (props.intentCount * 12.5).toFixed(2));
 const ticketCount = ref(5);
+
+// --- AWallet & Activity Brake Configuration ---
+const dailyLimit = ref(10);
+const singleTxLimit = ref(3);
+const isA2AEnabled = ref(true);
+const whitelist = ref([
+  { domain: 'openai.com', status: 'Active', icon: Globe },
+  { domain: 'stripe.com', status: 'Secure', icon: ShieldCheck },
+  { domain: 'agentmail.ai', status: 'A2A-Fulfillment', icon: Zap },
+  { domain: 'antigravity.run', status: 'Core-Mission', icon: Activity }
+]);
+
+const investmentRules = ref([
+ { id: 1, trigger: 'Revenue Growth > 50%', action: 'Buy 10 Shares', asset: 'NVDA', status: 'Standby' },
+ { id: 2, trigger: '10-K Sentiment >= 0.8', action: 'Scale Position', asset: 'AAPL', status: 'Enabled' }
+]);
+
+const isScanning = ref(false);
+const scanComplete = ref(false);
+
+const startScanning = () => {
+    if (isScanning.value || scanComplete.value) return;
+    isScanning.value = true;
+    setTimeout(() => {
+        isScanning.value = false;
+        scanComplete.value = true;
+    }, 3000);
+};
 
 const currentRank = computed(() => {
     if (props.intentCount >= 100) return 'Amane Elite';
@@ -42,16 +78,19 @@ const handlePurchaseTicket = () => {
 
 const menuItems = [
   { id: 'ledger', icon: History, label: 'Resonance Ledger' },
+  { id: 'awallet', icon: Wallet, label: 'AWallet & Control' },
+  { id: 'market', icon: ShoppingCart, label: 'A2A Marketplace' },
   { id: 'sbt', icon: ShieldCheck, label: 'SBT Proof' },
   { id: 'tickets', icon: Ticket, label: 'Ticket System' },
   { id: 'biometrics', icon: Fingerprint, label: 'Biometrics' },
 ];
 
-const ledgerItems = ref([1, 2, 3, 4].map((i) => ({
-  id: i,
-  amount: (Math.random() * 2).toFixed(2),
-  block: (40212 + i).toLocaleString()
-})));
+const ledgerItems = ref([
+  { id: 1, title: 'Stock Purchase: NVDA', subtitle: 'Execute Logic: Growth > 50%', amount: '-$12.40', block: '40,225', icon: TrendingUp },
+  { id: 2, title: '10-K Report Purchase', subtitle: 'Paid to EdgarSync API', amount: '-$0.50', block: '40,223', icon: BarChart3 },
+  { id: 3, title: 'Design Fee Settlement', subtitle: 'Paid to @creativ_agent', amount: '-$150.00', block: '40,218', icon: UserCheck },
+  { id: 4, title: 'Intent Reward', subtitle: 'Validated via Amane Core', amount: '+$2.50', block: '40,212', icon: Zap },
+]);
 </script>
 
 <template>
@@ -137,15 +176,15 @@ const ledgerItems = ref([1, 2, 3, 4].map((i) => ({
             >
               <div class="flex items-center gap-6">
                 <div class="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-[#8b7e74] border border-white/5">
-                  <Zap :size="18" />
+                  <component :is="item.icon || Zap" :size="18" />
                 </div>
                 <div class="space-y-1">
-                  <p class="text-[11px] font-bold uppercase tracking-widest text-white/80">Intent Capture Event</p>
-                  <p class="text-[9px] font-light text-white/20 italic">Validated via Attention Gap Mechanism</p>
+                  <p class="text-[11px] font-bold uppercase tracking-widest text-white/80">{{ item.title }}</p>
+                  <p class="text-[9px] font-light text-white/20 italic">{{ item.subtitle }}</p>
                 </div>
               </div>
               <div class="text-right space-y-1">
-                <p class="text-[12px] font-mono-light text-[#c0a080]">+{{ item.amount }} SOL</p>
+                <p class="text-[12px] font-mono-light text-[#c0a080]">{{ item.amount }}</p>
                 <p class="text-[7px] text-white/10 uppercase tracking-[0.3em]">Block #{{ item.block }}</p>
               </div>
             </div>
@@ -229,22 +268,167 @@ const ledgerItems = ref([1, 2, 3, 4].map((i) => ({
           </div>
         </div>
 
-        <div v-if="activeTab === 'biometrics'" class="max-w-xl space-y-12 animate-fade-in-up">
-          <div class="flex flex-col items-center justify-center space-y-12 py-20 bg-white/[0.01] rounded-[4rem] border border-white/[0.03]">
-            <div class="relative group cursor-pointer">
-              <div class="absolute inset-0 bg-[#c0a080]/20 blur-3xl rounded-full scale-150 animate-pulse" />
-              <div class="relative w-32 h-32 rounded-full border-2 border-[#c0a080] flex items-center justify-center bg-black/50 shadow-[inset_0_0_30px_rgba(192,160,128,0.2)]">
-                <Fingerprint :size="56" class="text-[#c0a080] animate-pulse" />
+        <div v-if="activeTab === 'awallet'" class="space-y-12 animate-fade-in-up">
+          <header class="flex justify-between items-end border-b border-white/[0.05] pb-8">
+            <div class="space-y-2">
+              <h2 class="text-4xl font-serif-luxury italic text-white/90">AWallet & Activity Brake</h2>
+              <p class="text-[9px] font-black uppercase tracking-widest text-[#c0a080]">Agent-to-Agent Financial Guardrails</p>
+            </div>
+            <div :class="['px-4 py-2 rounded-full border text-[8px] font-black uppercase tracking-widest transition-all', 
+                         isA2AEnabled ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-red-500/10 border-red-500/30 text-red-400']">
+                 {{ isA2AEnabled ? 'Autonomous Agency: Active' : 'Manual Approval Only' }}
+            </div>
+          </header>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <!-- Left: Spending Controls & Logic Engine -->
+            <div class="p-12 bg-white/[0.02] border border-white/5 rounded-[3rem] space-y-10">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                   <Activity :size="24" class="text-teal-400" />
+                   <span class="text-[11px] font-black uppercase tracking-widest">Activity Brake</span>
+                </div>
+                <button @click="isA2AEnabled = !isA2AEnabled" class="w-12 h-6 bg-white/5 rounded-full relative p-1 transition-all">
+                   <div :class="['w-4 h-4 rounded-full transition-all', isA2AEnabled ? 'bg-teal-500 translate-x-6' : 'bg-white/20 translate-x-0']"></div>
+                </button>
+              </div>
+
+              <div class="space-y-8">
+                 <div class="space-y-4">
+                    <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
+                       <span>Daily Spending Limit</span>
+                       <span class="text-white">${{ dailyLimit }} / day</span>
+                    </div>
+                    <input v-model.number="dailyLimit" type="range" min="1" max="50" step="1" class="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-[#c0a080]" />
+                 </div>
+
+                 <div class="space-y-4">
+                    <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
+                       <span>Transaction Threshold</span>
+                       <span class="text-white">${{ singleTxLimit }} / tx</span>
+                    </div>
+                    <input v-model.number="singleTxLimit" type="range" min="0.1" max="10" step="0.1" class="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-[#c0a080]" />
+                 </div>
+              </div>
+
+              <!-- Investment Logic -->
+              <div class="pt-8 border-t border-white/5 space-y-6 text-left">
+                 <div class="flex items-center gap-4">
+                    <Terminal :size="20" class="text-indigo-400" />
+                    <span class="text-[11px] font-black uppercase tracking-widest text-white/40">Investment Logic Engine</span>
+                 </div>
+                 <div class="space-y-3">
+                    <div v-for="rule in investmentRules" :key="rule.id" class="p-4 bg-white/[0.01] border border-white/[0.03] rounded-2xl flex items-center justify-between">
+                        <div class="space-y-1">
+                           <p class="text-[10px] font-bold text-white/60">IF: {{ rule.trigger }}</p>
+                           <p class="text-[9px] font-mono text-white/20 uppercase tracking-widest">DO: {{ rule.action }}</p>
+                        </div>
+                        <span class="text-[8px] px-2 py-0.5 rounded bg-white/5 text-slate-500 uppercase">{{ rule.status }}</span>
+                    </div>
+                 </div>
               </div>
             </div>
+
+            <!-- Right: Permission Layer -->
+            <div class="p-12 bg-black/40 border border-white/5 rounded-[3rem] space-y-10 text-left">
+               <div class="flex items-center gap-4">
+                  <Globe :size="24" class="text-[#c0a080]" />
+                  <span class="text-[11px] font-black uppercase tracking-widest">A2A Permission Layer</span>
+               </div>
+               
+               <div class="space-y-3">
+                  <div v-for="site in whitelist" :key="site.domain" class="flex items-center justify-between p-4 bg-white/[0.02] border border-white/[0.03] rounded-2xl hover:bg-white/[0.05] transition-all">
+                     <div class="flex items-center gap-4">
+                        <component :is="site.icon" :size="14" class="opacity-40" />
+                        <span class="text-xs font-mono text-white/60">{{ site.domain }}</span>
+                     </div>
+                     <span class="text-[8px] font-black uppercase tracking-tighter text-teal-500">{{ site.status }}</span>
+                  </div>
+               </div>
+
+               <div class="pt-6 border-t border-white/5 flex items-center gap-4 opacity-30">
+                  <Lock :size="14" />
+                  <p class="text-[9px] font-light italic leading-tight">
+                    "Automatic on-boarding for AI Agents enabled via Gateway Protocol v2.4."
+                  </p>
+               </div>
+            </div>
+          </div>
+
+          <!-- Startup Vision Banner -->
+          <div class="p-12 bg-gradient-to-r from-teal-500/10 to-blue-500/10 border border-white/5 rounded-[4rem] text-center space-y-4">
+              <h3 class="text-2xl font-serif-luxury italic text-white">The Agentic Economy Framework</h3>
+              <p class="text-[11px] text-slate-400 max-w-xl mx-auto leading-relaxed font-serif italic">
+                AIエージェントが自ら資金を管理し、商取引を完結させるための自律的金融基盤。
+              </p>
+              <div class="flex justify-center gap-8 pt-4">
+                  <div class="flex flex-col items-center gap-1">
+                      <span class="text-[18px] font-mono text-white">0.00s</span>
+                      <span class="text-[8px] uppercase tracking-widest text-slate-500">A2A Latency</span>
+                  </div>
+                  <div class="flex flex-col items-center gap-1">
+                      <span class="text-[18px] font-mono text-teal-400">Stable</span>
+                      <span class="text-[8px] uppercase tracking-widest text-slate-500">Gateway Flow</span>
+                  </div>
+              </div>
+          </div>
+        </div>
+
+        <!-- A2A Marketplace View -->
+        <div v-if="activeTab === 'market'" class="space-y-12 animate-fade-in-up">
+          <header class="flex justify-between items-end border-b border-white/[0.05] pb-8">
+              <div class="space-y-2 text-left">
+                <h2 class="text-4xl font-serif-luxury italic text-white/90">A2A Intelligent Market</h2>
+                <p class="text-[9px] font-bold uppercase tracking-widest text-blue-400">Collaborative Agency & Service Settlement</p>
+              </div>
+          </header>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div v-for="marketItem in [
+                  { title: 'EdgarSync 10-K API', subtitle: 'SEC Financial Data Access', price: '$0.50/call', icon: BarChart3 },
+                  { title: '@creative_agent', subtitle: 'UI/UX Generation & Assets', price: '$150/task', icon: UserCheck },
+                  { title: 'Antigravity X Runtime', subtitle: 'Browser Cloud Compute', price: '$0.05/slot', icon: Activity }
+              ]" :key="marketItem.title" class="p-8 bg-white/[0.01] border border-white/[0.03] rounded-[2rem] hover:bg-white/[0.04] transition-all flex flex-col gap-6 text-left">
+                  <div class="w-12 h-12 rounded-2xl bg-black border border-white/5 flex items-center justify-center text-white/40">
+                     <component :is="marketItem.icon" :size="20" />
+                  </div>
+                  <div>
+                     <h4 class="text-[12px] font-bold text-white/80 uppercase tracking-widest">{{ marketItem.title }}</h4>
+                     <p class="text-[9px] text-white/30 italic">{{ marketItem.subtitle }}</p>
+                  </div>
+                  <div class="mt-auto pt-4 border-t border-white/5 flex justify-between items-center">
+                      <span class="text-mono text-sm text-[#c0a080]">{{ marketItem.price }}</span>
+                      <button class="px-4 py-1.5 rounded-full bg-white/5 text-[8px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">Contract</button>
+                  </div>
+              </div>
+          </div>
+        </div>
+
+        <div v-if="activeTab === 'biometrics'" class="max-w-xl space-y-12 animate-fade-in-up">
+          <div class="flex flex-col items-center justify-center space-y-12 py-20 bg-white/[0.01] rounded-[4rem] border border-white/[0.03]">
+            <div class="relative group cursor-pointer" @click="startScanning">
+              <div :class="['absolute inset-0 bg-[#c0a080]/20 blur-3xl rounded-full scale-150 transition-opacity duration-1000', isScanning ? 'opacity-100 animate-pulse' : 'opacity-0']" />
+              <div :class="['relative w-32 h-32 rounded-full border-2 flex items-center justify-center bg-black/50 transition-all duration-700', isScanning ? 'border-[#c0a080] shadow-[0_0_50px_rgba(192,160,128,0.3)]' : 'border-white/10']">
+                <Fingerprint :size="56" :class="[isScanning ? 'text-[#c0a080] animate-pulse' : 'text-white/20 group-hover:text-white/40']" />
+              </div>
+              <div v-if="isScanning" class="absolute inset-0 border-t-2 border-[#c0a080] rounded-full animate-spin-slow"></div>
+            </div>
             <div class="text-center space-y-4">
-              <h3 class="text-[12px] font-black uppercase tracking-[0.6em] text-white">Anchor Authenticated</h3>
-              <p class="text-[10px] font-light text-white/30 italic max-w-xs mx-auto">
-                Your unique biometric hash is used to sign all resonance events within the Amane OS.
+              <h3 class="text-[12px] font-black uppercase tracking-[0.6em] text-white">
+                  {{ isScanning ? 'Scanning Bio-Hash...' : (scanComplete ? 'Identity Anchored' : 'Touch to Authenticate') }}
+              </h3>
+              <p class="text-[10px] font-light text-white/30 italic max-w-xs mx-auto leading-relaxed">
+                {{ scanComplete ? 'Encryption keys rotated. Your unique biometric signature is now mapped to did:amane:l3.' : 'Your unique biometric hash is used to sign all resonance events within the Amane OS.' }}
               </p>
             </div>
-            <div class="flex gap-1">
-               <div v-for="i in 10" :key="i" class="w-1.5 h-1.5 bg-teal-500/20 rounded-full" />
+            
+            <!-- Scan Progress Bar -->
+            <div v-if="isScanning" class="w-48 h-[1px] bg-white/5 relative overflow-hidden">
+                <div class="absolute inset-0 bg-teal-500/50 animate-progress"></div>
+            </div>
+
+            <div v-if="!isScanning" class="flex gap-1">
+               <div v-for="i in 10" :key="i" :class="['w-1.5 h-1.5 rounded-full transition-colors duration-1000', scanComplete ? 'bg-teal-500' : 'bg-white/5']" />
             </div>
           </div>
         </div>
@@ -294,5 +478,22 @@ const ledgerItems = ref([1, 2, 3, 4].map((i) => ({
 .custom-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 10px;
+}
+@keyframes progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress {
+  animation: progress 2s infinite linear;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
 }
 </style>

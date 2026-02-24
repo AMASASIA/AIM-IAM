@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { executeAtomicMint } = require('../services/atomic');
+const { generateOpalMasterpiece } = require('../services/opalImageService');
 
 /**
  * OKE Protocol: Triple Minting Logic
@@ -8,12 +9,28 @@ const { executeAtomicMint } = require('../services/atomic');
  */
 router.post('/mint-fact', async (req, res) => {
     try {
-        const { targetWallet, contextFact, visualFact, secretKey } = req.body;
+        const { targetWallet, contextFact, visualFact, physics, useOpal } = req.body;
         console.log(`[OKE Protocol] Starting REAL Triple Mint for ${targetWallet || 'System Agent'}`);
 
+        let finalVisual = visualFact;
+
+        // OPAL ENHANCEMENT: If useOpal is true, generate a high-quality AI masterpiece
+        if (useOpal) {
+            const hdImage = await generateOpalMasterpiece(visualFact, physics || {}, contextFact?.name || 'Atomic Fact');
+            if (hdImage) {
+                console.log("[OKE] OPAL Masterpiece Generated:", hdImage);
+                finalVisual = hdImage;
+            }
+        }
+
         // Call the real Web3 service
-        // For now, we use a placeholder IPFS URL or combine facts into metadata
-        const metadataString = JSON.stringify({ contextFact, visualFact, timestamp: new Date() });
+        const metadataString = JSON.stringify({
+            contextFact,
+            visualFact: finalVisual,
+            physics,
+            timestamp: new Date()
+        });
+
         const result = await executeAtomicMint(targetWallet || process.env.DEFAULT_USER_WALLET, `data:application/json;base64,${Buffer.from(metadataString).toString('base64')}`);
 
         res.json({
@@ -25,19 +42,13 @@ router.post('/mint-fact', async (req, res) => {
                 tba: result.tba,
                 explorer: result.explorer
             },
-            message: "OKE Atomic Mint (Thinking, Seeing, Proving) Completed on Base Sepolia."
+            imageUrl: finalVisual,
+            message: useOpal ? "OKE & OPAL Joint Mint Completed." : "OKE Atomic Mint Completed."
         });
     } catch (error) {
         console.error("Triple Mint Error:", error);
         res.status(500).json({ error: "Atomic Mint Execution Failed (Web3 Error)" });
     }
 });
-
-async function mockMint(type, data) {
-    // Simulate on-chain entry
-    const txHash = "0x" + Buffer.from(Math.random().toString() + Date.now()).toString('hex').slice(0, 40);
-    console.log(`[OKE Mint] ${type} recorded: ${txHash}`);
-    return { type, tx: txHash };
-}
 
 module.exports = router;

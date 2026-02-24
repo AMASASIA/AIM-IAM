@@ -29,6 +29,7 @@ import { UnifiedService } from '../services/unifiedService';
 import SystemLogs from '../components/SystemLogs.vue';
 import { useAmasAudio } from '../composables/useAmasAudio';
 import { invisibleFinanceService } from '../services/invisibleFinanceService';
+import { useInvisibleFinance } from '../composables/useInvisibleFinance'; // Added
 import { web3Service } from '../services/web3Service';
 import { labelingCaller } from '../services/labelingCaller';
 import { useWebRTC } from '../composables/useWebRTC';
@@ -59,20 +60,6 @@ const kernelSession = ref(null);
 const recognitionRef = ref(null);
 // Sanctuary State
 const showSanctuary = ref(false);
-
-const handleSanctuaryConfirm = () => {
-    showSanctuary.value = false;
-    notify('AMAS Liaison', 'Agreement Sealed. SBT Minting...', 'success');
-    
-    // Log the invisible finance event
-    notebookEntries.value.unshift({
-        id: 'SBT-' + Date.now(),
-        type: 'scifi',
-        title: '💎 Invisible Finance: Agreement',
-        content: '**Protocol Sealed**\n\n- Type: Liaison Integration\n- Status: Minted on Polygon zkEVM\n- Hash: In-Visible',
-        timestamp: new Date()
-    });
-};
 
 // ... existing refs
 const showContactBook = ref(false);
@@ -843,128 +830,48 @@ const handleFinanceClick = () => {
     }
 };
 
-// --- Tive AI: Invisible Finance Gesture Logic ---
-const { playSanctuaryBell } = useAmasAudio();
+// --- Tive AI: Invisible Finance & Fairy Vert Ritual ---
+const { 
+    playSanctuaryBell, 
+    startSanctuaryHold, 
+    executeInvisibleFinance, 
+    isHolding: isSanctuaryHolding, 
+    sanctuaryTime 
+} = useInvisibleFinance();
+
 const finTouchPoints = ref(0);
 const finStartX = ref(0);
 const finHoldStartTime = ref(0);
-const isFinHolding = ref(false);
 const finGestureActive = ref(false);
 
 const handleFinancePointerDown = (e) => {
     finTouchPoints.value++;
-    finStartX.value = e.clientX;
     finHoldStartTime.value = Date.now();
     
-    // Memory Ratio: 2-finger hold
     if (finTouchPoints.value === 2) {
-        isFinHolding.value = true;
         finGestureActive.value = true;
-        notify('Memory Ratio', 'Recording Memory... (Hold for ingestion)', 'info');
         playSanctuaryBell(); 
+        
+        // Trigger the 90s Sanctuary Hold Overlay
+        showSanctuary.value = true;
     }
 };
 
 const handleFinancePointerMove = (e) => {
-    // Finance Ratio: 2-finger swipe (> 60px)
-    if (finTouchPoints.value === 2 && Math.abs(e.clientX - finStartX.value) > 60) {
-        if (finGestureActive.value) {
-            handleFinanceExecute();
-            finGestureActive.value = false; // Prevent multi-trigger
-        }
-    }
+    // Gestures can also be used for quick triggers, but the Primary Ritual is the Sanctuary Hold
 };
 
-const addPendingCardToNotebook = (intentData, imageBase64, pendingId) => {
-    notebookEntries.value.unshift({
-        id: pendingId,
-        type: 'scifi',
-        title: '💠 Triple Mint: Processing...',
-        content: `**Opal Reasoning Engine** is validating your intent.\n\n- Intent: ${intentData.message || 'Direct Mint'}\n- Layer: Base Sepolia\n- Status: Web3 Propagation Started...`,
-        timestamp: new Date(),
-        metadata: { 
-            image: imageBase64,
-            is_pending: true 
-        }
-    });
-};
-
-const handleFinancePointerUp = async () => {
-    if (finTouchPoints.value === 2 && finGestureActive.value) {
-        finGestureActive.value = false;
-
-        // 1. Capture visual context using the hidden video source
-        const currentView = captureFrame(videoSource.value);
-        
-        // 2. Will from transcribed text
-        const userWill = transcribedText.value || "この瞬間を事実として証明して";
-
-        notify('AIM3', 'Capturing Will & Vision...', 'info');
-        const pendingId = 'MINT-' + Date.now();
-        
-        try {
-            // 3. Analyze through secure backend
-            const result = await analyzeIntent(userWill, currentView);
-            
-            if (result.intent === 'MINT_FACT') {
-                notify('OKE', 'Triple Mint Initiated ✨', 'success');
-                playSanctuaryBell();
-                
-                // Show immediate feedback
-                addPendingCardToNotebook(result, currentView, pendingId);
-
-                // 4. Synchronous Mint Request (Wait for real on-chain results)
-                const mintResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080'}/api/oke/mint-fact`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        targetWallet: user.value?.id || '0xTEST_NODE',
-                        contextFact: userWill,
-                        visualFact: currentView
-                    })
-                });
-
-                if (mintResponse.ok) {
-                    const mintData = await mintResponse.json();
-                    
-                    // Update entry in notebook
-                    const entryIdx = notebookEntries.value.findIndex(e => e.id === pendingId);
-                    if (entryIdx !== -1) {
-                        notebookEntries.value[entryIdx] = {
-                            ...notebookEntries.value[entryIdx],
-                            title: '💠 OKE Certified: Will & Vision',
-                            content: `**Fact Authenticated via OKE Protocol**\n\n- Intent: ${result.message}\n- Status: Atomic Proof Generated\n- TX: ${mintData.proofs.tx.slice(0, 14)}...`,
-                            metadata: {
-                                ...notebookEntries.value[entryIdx].metadata,
-                                is_pending: false,
-                                is_verified: true,
-                                on_chain_hash: mintData.proofs.tx,
-                                amane_link: mintData.proofs.explorer,
-                                oke_facts: {
-                                    model_id: 'OKE-ALT-VITE',
-                                    soulPoints: '189.9',
-                                    onChainHash: mintData.proofs.tx
-                                }
-                            }
-                        };
-                    }
-                    notify('OKE', 'Triple Mint Completed on Base!', 'success');
-                }
-            } else {
-                const holdDuration = Date.now() - finHoldStartTime.value;
-                if (holdDuration > 800) {
-                    notify('Memory Ratio', 'Memory captured & Semantic Index updated.', 'success');
-                } else {
-                    notify('Memory Ratio', 'Hold shorter than threshold. Ingestion aborted.', 'warning');
-                }
-            }
-        } catch (err) {
-            notify('Error', 'Multimodal Sync Failed', 'error');
-            console.error(err);
-        }
-    }
+const handleFinancePointerUp = () => {
     finTouchPoints.value = 0;
-    isFinHolding.value = false;
+    finGestureActive.value = false;
+};
+
+const handleSanctuaryConfirm = async () => {
+    showSanctuary.value = false;
+    notify('Fairy Vert', 'Advocacy Confirmed. Executing Protocol...', 'success');
+    
+    // Choose between Finance or Fact based on context (default to Finance for Fairy Vert)
+    await handleFinanceExecute();
 };
 
 const handleFinanceExecute = async () => {

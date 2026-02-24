@@ -186,8 +186,11 @@ const handleSave = () => {
         <button @click="toggleFullScreen" class="w-14 h-14 bg-white/80 hover:bg-white text-slate-400 hover:text-slate-900 rounded-full transition-all shadow-[0_10px_30px_rgba(0,0,0,0.1)] flex items-center justify-center group active:scale-90">
             <component :is="isFullScreen ? Minimize2 : Maximize2" :size="20" class="group-hover:rotate-12 transition-transform" />
         </button>
-        <button v-if="isFullScreen" @click="$emit('close')" class="w-14 h-14 bg-black text-white rounded-full transition-all shadow-[0_15px_35px_rgba(0,0,0,0.3)] hover:scale-110 active:scale-90 flex items-center justify-center">
-            <ChevronRight :size="22" class="rotate-90" />
+        <button @click="$emit('close')" class="group flex items-center gap-4 pl-8 pr-6 py-4 bg-black text-white rounded-full transition-all duration-700 shadow-[0_20px_50px_rgba(0,0,0,0.4)] hover:scale-110 active:scale-90 border border-white/20">
+            <span class="text-[9px] font-black uppercase tracking-[0.4em] text-white/50 group-hover:text-white transition-colors">Retract to Core</span>
+            <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                <ChevronRight :size="18" class="rotate-180" />
+            </div>
         </button>
     </div>
 

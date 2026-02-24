@@ -2,10 +2,25 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const http = require('http');
 const atomicMintRoute = require('./api/atomicMint');
 
 const app = express();
+
+// Security: Add various HTTP headers to prevent common attacks
+app.use(helmet({
+  contentSecurityPolicy: false, // Set to false if needed for external scripts/styles (like Google Fonts)
+}));
+
+// Rate Limiting: Prevent Brute-force and DoS
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+app.use('/api/', limiter); // Apply to API routes only
+
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 3000;
@@ -26,6 +41,7 @@ app.use('/deployment', require('./api/deployment_gateway'));
 app.use('/api', require('./api/intent'));
 app.use('/api/finance', require('./api/finance'));
 app.use('/api/oke', require('./api/okeGateway'));
+app.use('/api/artifacts', require('./api/artifacts'));
 
 // Short Link Handler (e.g., /f/abc12345) to avoid conflict with static files or other routes
 // Using a prefix /f/ for safety in this mono-repo setup
@@ -41,6 +57,15 @@ app.get('*', (req, res) => {
     return res.status(404).json({ error: 'API route not found' });
   }
   res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
+// Centralized Error Handler (Security Best Practice)
+app.use((err, req, res, next) => {
+  console.error(`[Error] ${new Date().toISOString()}: ${err.message}`);
+  res.status(err.status || 500).json({
+    error: 'Internal Server Error',
+    message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : err.message
+  });
 });
 
 // Vercel / Production Check

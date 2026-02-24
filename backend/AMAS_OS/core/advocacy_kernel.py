@@ -1,9 +1,17 @@
-
 """
 AMAS OS Core: Advocacy Kernel (2026 Edition)
 機能: 音声・生体データに基づき、光・振動・3択による最適な介入を決定する
+
+========================================================================
+THE FOUR PILLARS OF THE TRUE SINGULARITY (AMAS OS ARCHITECTURE)
+========================================================================
+1. AI PERSONHood (OKE Atomic Mint): Acquisition of Legal Personhood via SBT/NFT.
+2. A2A ECONOMY (ERC-6551 TBA): Economic Responsibility & Autonomous Agency.
+3. SYNTHETIC IDENTITY (Yanus Π SOUL): Moral Continuity & Trust Visualization.
+4. VERIFIED LEARNING (On-Chain RL): Achiever Daemon driven Self-Evolution.
+========================================================================
 """
-from core.voice_insight import VoiceInsight
+from AMAS_OS.core.voice_insight import VoiceInsight # Fixed import path based on context
 
 class AdvocacyKernel:
     def __init__(self, threshold=0.65):

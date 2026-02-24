@@ -1,13 +1,13 @@
 <script setup>
 import { ref, nextTick, watch, computed } from 'vue';
-import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen, Mic, Video, Activity, Globe, Layout, Triangle } from 'lucide-vue-next';
+import { Feather, MapPin, Sparkles, ShieldCheck, Zap, Image as ImageIcon, Clock, BookOpen, Mic, Video, Activity, Globe, Layout, Triangle, LayoutDashboard } from 'lucide-vue-next';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import OKECertificationCard from './OKECertificationCard.vue';
 import MapShareModal from './MapShareModal.vue';
 import DiscoveryPanel from './DiscoveryPanel.vue';
 import { collection, addDoc } from 'firebase/firestore';
 import { firestore } from '../firebase';
-import { mockExtractInsights, parseInsightsToNotebookEntry } from '../services/discoveryService';
+import { enhancedExtractInsights, mockExtractInsights, parseInsightsToNotebookEntry } from '../services/discoveryService';
 import MeridiemTimeline from './MeridiemTimeline.vue';
 
 const props = defineProps({
@@ -28,6 +28,11 @@ const diaryInput = ref('');
 const showDiaryInput = ref(false);
 const isMeridiemOpen = ref(false);
 const meridiemInitialContent = ref('');
+
+// --- DISCOVERY INTELLIGENCE (Antigravity Mission) ---
+const isMissionActive = ref(false);
+const missionStatus = ref('');
+const discoveryAgentState = ref('idle'); // idle, patrolling, extracting
 
 const localFilter = ref(props.filter);
 
@@ -139,22 +144,30 @@ const openDiscoveryPanel = () => {
 };
 
 const handleExtractInsights = async (params) => {
-    isExtracting.value = true;
-    
-    try {
-        // Use mock service for now (replace with real API when deployed)
-        const result = await mockExtractInsights(params);
+    if (params.agentMode === 'patrol') {
+        isMissionActive.value = true;
+        missionStatus.value = `Antigravity X: ${params.model} discovering intentions...`;
+        discoveryAgentState.value = 'patrolling';
         
+        // --- MISSION SIMULATION (Antigravity Autonomy) ---
+        setTimeout(() => {
+            isMissionActive.value = false;
+            discoveryAgentState.value = 'idle';
+            emit('notify', 'Antigravity', 'Mission Success: Synchronized SNS Intents to Semantic Layer.', 'success');
+        }, 8000);
+        
+        showDiscoveryPanel.value = false;
+        return;
+    }
+
+    isExtracting.value = true;
+    try {
+        const result = await enhancedExtractInsights(params);
         if (result.success) {
-            // Parse insights into notebook entry
             const entry = parseInsightsToNotebookEntry(result.insights, result);
-            
-            // Emit to parent to add to entries
             emit('save-diary', entry.content, entry);
             emit('notify', 'AI Discovery', `Extracted ${result.postsAnalyzed} insights from @${result.handle}`, 'success');
             
-            // --- LINKAGE WITH AMAS AGENT ---
-            // 自動的にエージェントに通知し、SBTとしてのミントをトリガーする
             emit('action', {
                 type: 'amas-agent-command',
                 command: 'record_insight',
@@ -164,12 +177,11 @@ const handleExtractInsights = async (params) => {
                     result: result
                 }
             });
-
             showDiscoveryPanel.value = false;
         }
     } catch (error) {
         console.error('Discovery error:', error);
-        emit('notify', 'System', 'Failed to extract insights. Please try again.', 'error');
+        emit('notify', 'System', 'Discovery extraction failed.', 'error');
     } finally {
         isExtracting.value = false;
     }
@@ -183,26 +195,19 @@ const handleExtractInsights = async (params) => {
       <!-- HEADER SECTION -->
       <header class="text-center space-y-6 md:space-y-8 mt-16 md:mt-24">
         <div class="flex flex-col items-center justify-center">
+          
           <div class="flex gap-4 md:gap-8">
-            <!-- Functional Buttons Group (黒BOX style) -->
-            <button @click="openDiscoveryPanel" title="AI Discovery" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/95 flex items-center justify-center text-purple-400 shadow-discovery hover:scale-110 transition-all cursor-pointer group active:scale-95 border border-purple-500/20 animate-pulse-subtle">
+            <!-- Top Function Pair: Discovery & Timeline -->
+            <button @click="openDiscoveryPanel" title="AI Discovery" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/95 flex items-center justify-center text-purple-400 shadow-discovery hover:scale-110 transition-all cursor-pointer group active:scale-95 border border-purple-500/20">
               <Triangle :size="32" class="rotate-180 fill-current group-hover:scale-110 transition-transform duration-500" />
             </button>
-            <button @click="isMeridiemOpen = true" title="Meridiem Timeline" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-black flex items-center justify-center text-white shadow-meridiem hover:scale-110 transition-all cursor-pointer group active:scale-95 border border-white/20 animate-pulse-slow">
+            <button @click="isMeridiemOpen = true" title="Meridiem Timeline" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-black flex items-center justify-center text-white shadow-meridiem hover:scale-110 transition-all cursor-pointer group active:scale-95 border border-white/20">
               <Layout :size="32" class="group-hover:rotate-12 transition-transform duration-500" />
             </button>
-            
-            <div class="hidden md:block w-[1px] h-24 bg-slate-200/30 mx-2" />
-            
-            <button @click="toggleDiaryInput" title="Write Entry" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl hover:scale-110 transition-all cursor-pointer group active:scale-95">
-              <Feather :size="32" class="group-hover:rotate-12 transition-transform duration-500" />
-            </button>
-            <button @click="$emit('toggle-voice')" title="Speak / Listen" :class="['w-16 h-16 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all cursor-pointer group active:scale-95 shadow-2xl', isListening ? 'bg-red-500 text-white scale-110 shadow-red-500/50' : 'bg-slate-900 text-cyan-400 shadow-cyan-100/20 hover:shadow-cyan-500/30']">
-              <component :is="isListening ? Zap : Mic" :size="32" :class="[isListening ? 'animate-pulse' : 'group-hover:-rotate-12 transition-transform duration-500']" />
-            </button>
           </div>
+
           <p class="mt-8 text-[11px] font-black uppercase tracking-[0.5em] text-slate-400 animate-in">
-            Reflecting Synchronized Intelligence
+            Synchronizing Cognitive Assets
           </p>
         </div>
         <h1 class="font-serif-luxury text-8xl md:text-[10rem] lg:text-[12rem] text-slate-900 leading-[0.8] tracking-tighter font-bold italic select-none">Personal Notebook</h1>
@@ -227,6 +232,18 @@ const handleExtractInsights = async (params) => {
         </div>
 
       </header>
+
+      <!-- BOTTOM PAIR: Positioned between Tabs and Timeline -->
+      <div class="flex flex-col items-center gap-12 py-8">
+          <div class="flex gap-4 md:gap-8">
+              <button @click="toggleDiaryInput" title="Write Entry" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl hover:scale-110 transition-all cursor-pointer group active:scale-95">
+                <Feather :size="32" class="group-hover:rotate-12 transition-transform duration-500" />
+              </button>
+              <button @click="$emit('toggle-voice')" title="Speak / Listen" :class="['w-16 h-16 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all cursor-pointer group active:scale-95 shadow-2xl', isListening ? 'bg-red-500 text-white scale-110 shadow-red-500/50' : 'bg-slate-900 text-cyan-400 shadow-cyan-100/20 hover:shadow-cyan-500/30']">
+                <component :is="isListening ? Zap : Mic" :size="32" :class="[isListening ? 'animate-pulse' : 'group-hover:-rotate-12 transition-transform duration-500']" />
+              </button>
+          </div>
+      </div>
 
       <!-- DIARY INPUT SECTION -->
       <section v-if="showDiaryInput" id="diary-input-section" class="space-y-6 relative z-[50]">
@@ -559,5 +576,14 @@ const handleExtractInsights = async (params) => {
 }
 .shadow-discovery {
     box-shadow: 0 0 40px rgba(168, 85, 247, 0.3), 0 0 15px rgba(168, 85, 247, 0.2);
+}
+/* Mission Progress Animation */
+@keyframes mission-progress {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(0); }
+    100% { transform: translateX(100%); }
+}
+.animate-mission-progress {
+    animation: mission-progress 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 </style>

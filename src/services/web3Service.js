@@ -2,65 +2,87 @@
  * Web3 Service - Atomic Minting & SBT Management
  * Interaction with Soulbound Token (ERC-5192/8004) protocols.
  */
+import { BrowserProvider, Contract, parseEther } from 'ethers';
+
+const ATOMIC_MINT_ADDRESS = import.meta.env.VITE_ATOMIC_MINT_CONTRACT_ADDRESS || '';
+const OKE_NFT_ADDRESS = import.meta.env.VITE_OKE_CONTRACT_ADDRESS || '';
+const BASE_SEPOLIA_CHAIN_ID = 84532;
+
+const ATOMIC_MINT_ABI = [
+    "function atomicMint(address to, string memory tokenURI) public payable returns (uint256, address)",
+    "function sbt() view returns (address)"
+];
+
+const SBT_ABI = [
+    "function balanceOf(address owner) view returns (uint256)"
+];
+
+let _provider = null;
+let _signer = null;
+let _userAddress = null;
+
+export async function connectWallet() {
+    if (typeof window === 'undefined' || !window.ethereum) {
+        throw new Error('MetaMask or compatible wallet required.');
+    }
+    _provider = new BrowserProvider(window.ethereum);
+    const accounts = await _provider.send('eth_requestAccounts', []);
+    _signer = await _provider.getSigner();
+    _userAddress = accounts[0];
+    return { provider: _provider, signer: _signer, address: _userAddress };
+}
+
+/**
+ * 🔒 SBT Balance Check (Token-Gating)
+ */
+export async function checkSBTBalance() {
+    try {
+        const { provider, address } = await connectWallet();
+        const atomicContract = new Contract(ATOMIC_MINT_ADDRESS, ATOMIC_MINT_ABI, provider);
+        const sbtAddress = await atomicContract.sbt();
+        const sbtContract = new Contract(sbtAddress, SBT_ABI, provider);
+        const balance = await sbtContract.balanceOf(address);
+        return balance > 0n;
+    } catch (error) {
+        console.error("SBT Balance Check Failed:", error);
+        return false;
+    }
+}
+
+/**
+ * 🔑 Proof of Ownership Signature
+ */
+export async function signMessageForAccess(artifactId) {
+    const { signer, address } = await connectWallet();
+    const timestamp = Date.now();
+    const message = `Unlock Artifact: ${artifactId}\nTimestamp: ${timestamp}\nWallet: ${address}`;
+    const signature = await signer.signMessage(message);
+    return { message, signature, address, timestamp };
+}
+
+/**
+ * 🔗 Execute Atomic Mint
+ */
+export async function executeAtomicMintOnChain({ metadataURI, valueWei = '0' }) {
+    const { signer, address } = await connectWallet();
+    const contract = new Contract(ATOMIC_MINT_ADDRESS, ATOMIC_MINT_ABI, signer);
+    const tx = await contract.atomicMint(address, metadataURI, {
+        value: valueWei !== '0' ? parseEther(valueWei) : 0n
+    });
+    console.log(`[Web3] Atomic Mint TX sent: ${tx.hash}`);
+    const receipt = await tx.wait();
+    return {
+        success: true,
+        transactionHash: receipt.hash,
+        explorer: `https://sepolia.basescan.org/tx/${receipt.hash}`
+    };
+}
 
 export const web3Service = {
-    /**
-     * Mint a Fact or Achievement to the user's SBT
-     */
-    async mintFactToSBT(factData) {
-        console.log('[Web3] 🧚 Minting Fact to SBT (Base Chain)...', factData);
-
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const hash = `0x${Math.random().toString(16).slice(2, 66)}`;
-                resolve({
-                    success: true,
-                    transactionHash: hash,
-                    tokenId: Math.floor(Math.random() * 1000000).toString(),
-                    metadata: factData
-                });
-            }, 2000);
-        });
-    },
-
-    /**
-     * Checks user's Verified Intent count and mints a milestone SBT if threshold is reached.
-     */
-    async checkMilestoneAndMintSBT(user, intentCount) {
-        const milestones = [
-            { threshold: 1, rank: 'Novice Responder', trait: 'Heard' },
-            { threshold: 10, rank: 'Resonance Adept', trait: 'Vibrated' },
-            { threshold: 50, rank: 'Semantic Architect', trait: 'Constructed' },
-            { threshold: 100, rank: 'Amane Elite', trait: 'Synchronized' }
-        ];
-
-        const milestone = milestones.find(m => m.threshold === intentCount);
-        if (milestone) {
-            console.log(`[Web3] Milestone Reached: ${milestone.rank}!`);
-            const sbtResult = await this.mintFactToSBT({
-                type: 'RANK_UP',
-                rank: milestone.rank,
-                trait: milestone.trait,
-                owner: user.threadsId,
-                timestamp: new Date().toISOString()
-            });
-            return { milestone, sbtResult };
-        }
-        return null;
-    },
-
-    /**
-     * Automatic Discovery to SBT
-     */
-    async processDiscoveryToSBT(discoveryResult) {
-        const fact = {
-            content: discoveryResult.insights,
-            category: 'Discovery Intelligence',
-            timestamp: new Date().toISOString(),
-            source: discoveryResult.handle
-        };
-        return await this.mintFactToSBT(fact);
-    }
+    connectWallet,
+    checkSBTBalance,
+    signMessageForAccess,
+    executeAtomicMintOnChain
 };
 
 export default web3Service;

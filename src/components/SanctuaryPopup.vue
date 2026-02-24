@@ -9,75 +9,67 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'confirm']);
 
-// Sound synthesis state
-const audioCtx = ref(null);
-const oscillator = ref(null);
-const gainNode = ref(null);
+// State
 const isSanctuaryActive = ref(false);
+const countdown = ref(90); // 90s AI Advocacy Hold
+const timer = ref(null);
 
 const playBell = async () => {
     try {
-        if (!audioCtx.value) {
-            audioCtx.value = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        
-        // Ensure context is running (fixes autoplay policy issues)
-        if (audioCtx.value.state === 'suspended') {
-            await audioCtx.value.resume();
-        }
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-        const now = audioCtx.value.currentTime;
-        
-        // E7 (2637.02 Hz) - High pure tone for clarity
-        oscillator.value = audioCtx.value.createOscillator();
-        oscillator.value.type = 'sine';
-        oscillator.value.frequency.setValueAtTime(2637.02, now);
-        
-        // Envelope: Attack (fast) -> Decay (exponential)
-        gainNode.value = audioCtx.value.createGain();
-        gainNode.value.gain.setValueAtTime(0, now);
-        gainNode.value.gain.linearRampToValueAtTime(0.3, now + 0.05); // Gentle attack
-        gainNode.value.gain.exponentialRampToValueAtTime(0.001, now + 2.8); // Long tail
-        
-        oscillator.value.connect(gainNode.value);
-        gainNode.value.connect(audioCtx.value.destination);
-        
-        oscillator.value.start(now);
-        oscillator.value.stop(now + 3.0);
-        
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(2637.02, now); // 2.6kHz / E7
+
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.2, now + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 3.0);
+
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 3.1);
     } catch (e) {
         console.error("Audio Context Error", e);
     }
 };
 
 onMounted(() => {
-    // Watch for the prop becoming true to trigger sound
     if (props.show) {
         playBell();
+        startCountdown();
     }
 });
 
-// Watch logic would be needed if this component stays mounted but toggles visibility
-// For now, assuming v-if controls it from parent or we add watcher.
-import { watch } from 'vue';
-watch(() => props.show, (newVal) => {
-    if (newVal) playBell();
-});
+const startCountdown = () => {
+    timer.value = setInterval(() => {
+        if (countdown.value > 0) {
+            countdown.value--;
+        } else {
+            clearInterval(timer.value);
+        }
+    }, 1000);
+};
 
 const handleYes = () => {
-    // 1. Visual Feedback
     isSanctuaryActive.value = true;
-    
-    // 2. Play Haptic (if mobile)
     if (navigator.vibrate) navigator.vibrate(50);
     
-    // 3. Emit decision after short delay for '90s hold' simulation or immediate
-    // We emit immediately for the UI flow, parent handles the 'hold'
     setTimeout(() => {
         emit('confirm');
         isSanctuaryActive.value = false;
-    }, 1500); // 1.5s visual hold in UI
+    }, 2000);
 };
+
+const skipHold = () => {
+    countdown.value = 0;
+    clearInterval(timer.value);
+};
+
 
 </script>
 
@@ -94,35 +86,63 @@ const handleYes = () => {
           <!-- Status Text -->
           <div class="space-y-2 text-center">
               <p class="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">
-                  <span v-if="!isSanctuaryActive">Sanctuary Request</span>
-                  <span v-else>Harmonizing...</span>
+                  <span v-if="countdown > 0">AI Advocacy Hold</span>
+                  <span v-else-if="!isSanctuaryActive">Advocacy Complete</span>
+                  <span v-else>Crystallizing...</span>
               </p>
-              <h2 class="font-serif-luxury text-2xl italic text-slate-800">
-                  {{ isSanctuaryActive ? 'Just a moment.' : 'Proceed with Agreement?' }}
+              <h2 class="font-serif-luxury text-3xl italic text-slate-800">
+                  <span v-if="countdown > 0">{{ countdown }}s Silence</span>
+                  <span v-else>{{ isSanctuaryActive ? 'Just a moment.' : 'Proceed with Wisdom.' }}</span>
               </h2>
+              <p v-if="countdown > 0" class="text-[8px] italic text-slate-400 max-w-[200px] mx-auto mt-4 leading-relaxed">
+                  "Purifying the intent... establishing the sanctity of this agreement."
+              </p>
           </div>
 
           <!-- The Heart / Decision Button -->
-          <button 
-            @click="handleYes"
-            :disabled="isSanctuaryActive"
-            :class="['w-24 h-24 rounded-full flex items-center justify-center transition-all duration-700 relative group', isSanctuaryActive ? 'scale-90 bg-slate-100 shadow-inner' : 'bg-white shadow-[0_20px_50px_-10px_rgba(0,0,0,0.1)] hover:scale-105 active:scale-95']"
-          >
-              <!-- Ripple Effect -->
-              <div v-if="!isSanctuaryActive" class="absolute inset-0 rounded-full border border-slate-200 animate-ping opacity-20"></div>
+          <div class="relative">
+              <button 
+                @click="handleYes"
+                :disabled="isSanctuaryActive || countdown > 0"
+                :class="['w-24 h-24 rounded-full flex items-center justify-center transition-all duration-700 relative group', 
+                    (isSanctuaryActive || countdown > 0) ? 'scale-90 bg-slate-100 opacity-40 cursor-not-allowed' : 'bg-white shadow-[0_20px_50px_-10px_rgba(0,0,0,0.1)] hover:scale-105 active:scale-95']"
+              >
+                  <Activity v-if="isSanctuaryActive" :size="32" class="text-teal-500 animate-pulse" />
+                  <Heart v-else :size="32" :class="[countdown > 0 ? 'text-slate-300' : 'text-slate-800 fill-slate-50 group-hover:fill-red-500/10 group-hover:text-red-500']" class="transition-colors" />
+              </button>
               
-              <Activity v-if="isSanctuaryActive" :size="32" class="text-teal-500 animate-pulse" />
-              <Heart v-else :size="32" class="text-slate-800 fill-slate-50 group-hover:fill-red-500/10 group-hover:text-red-500 transition-colors" />
-          </button>
+              <!-- Progress Ring (Simulated) -->
+              <svg v-if="countdown > 0" class="absolute inset-0 -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+                  <circle 
+                    cx="50" cy="50" r="48" 
+                    fill="none" stroke="currentColor" stroke-width="1.5"
+                    class="text-slate-200"
+                  />
+                  <circle 
+                    cx="50" cy="50" r="48" 
+                    fill="none" stroke="currentColor" stroke-width="1.5"
+                    class="text-teal-500 transition-all duration-1000"
+                    stroke-dasharray="301"
+                    :stroke-dashoffset="301 * (countdown / 90)"
+                  />
+              </svg>
+          </div>
 
           <!-- Actions -->
-          <div class="flex flex-col gap-4 w-full items-center">
+          <div class="flex flex-col gap-6 w-full items-center">
               <button 
                   v-if="!isSanctuaryActive"
                   @click="$emit('close')"
                   class="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
               >
-                  Not Now
+                  Exit Sanctuary
+              </button>
+              <button 
+                  v-if="countdown > 0"
+                  @click="skipHold"
+                  class="text-[7px] font-black uppercase tracking-[0.3em] text-slate-200 hover:text-slate-400"
+              >
+                  Dev: Fast Track
               </button>
           </div>
           

@@ -57,6 +57,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- AIM3 Search Engine Integration ---
+try:
+    from aim3_search_engine import router as aim3_search_router
+    app.include_router(aim3_search_router)
+    print("[AIM3] Search Engine router mounted at /aim3/*")
+except ImportError as e:
+    print(f"[AIM3] Search Engine not loaded: {e}")
+
 # --- Models ---
 class IntentRequest(BaseModel):
     text: str
