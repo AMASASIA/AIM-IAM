@@ -922,10 +922,9 @@ const handleFinanceClick = () => {
 
 // --- Tive AI: Invisible Finance & Fairy Vert Ritual ---
 const { 
-    playSanctuaryBell, 
     startSanctuaryHold, 
     executeInvisibleFinance, 
-    isHolding: isSanctuaryHolding, 
+    isHolding: isFinHolding, 
     sanctuaryTime 
 } = useInvisibleFinance();
 
@@ -1159,14 +1158,14 @@ const navigateTo = (view) => {
           @pointerleave="handleFinancePointerUp"
           :class="[
             'flex items-center gap-3 px-6 py-3 rounded-2xl shadow-2xl border transition-all active:scale-95 group touch-none',
-            isFinHolding 
+            (isFinHolding || isListening || isProcessingVoice)
               ? 'bg-emerald-900 border-emerald-400 scale-110 ring-4 ring-emerald-500/20' 
               : 'bg-[#1A1A1A] border-white/10 hover:scale-105'
           ]"
         >
-          <div :class="['w-2 h-2 rounded-full animate-pulse', isFinHolding ? 'bg-white' : 'bg-emerald-400']"></div>
+          <div :class="['w-2 h-2 rounded-full animate-pulse', (isFinHolding || isListening || isProcessingVoice) ? 'bg-white' : 'bg-emerald-400']"></div>
           <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
-            {{ isFinHolding ? 'Recording...' : 'Fairy Vert' }}
+            {{ isProcessingVoice ? 'Processing...' : (isFinHolding || isListening ? 'Recording...' : 'Fairy Vert') }}
           </span>
           <span class="text-sm">🧚</span>
         </button>
