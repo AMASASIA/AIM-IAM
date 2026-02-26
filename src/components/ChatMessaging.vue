@@ -14,43 +14,50 @@ const emit = defineEmits(['sendMessage', 'saveToNotebook']);
 const inputValue = ref('');
 const isListening = ref(false);
 const scrollContainerRef = ref(null);
-let recognition = null;
+const initRecognition = () => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recog = new SpeechRecognition();
+        recog.continuous = false;
+        recog.interimResults = false;
+        recog.lang = 'ja-JP';
 
-onMounted(() => {
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'ja-JP'; // Default to Japanese as per user request context
+        recog.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            inputValue.value = text;
+            isListening.value = false;
+            handleSend(); 
+        };
 
-    recognition.onresult = (event) => {
-      const text = event.results[0][0].transcript;
-      inputValue.value = text;
-      isListening.value = false;
-      handleSend(); // Auto-send voice input
-    };
+        recog.onerror = (event) => {
+            console.error("Speech Recognition Error:", event.error);
+            isListening.value = false;
+        };
 
-    recognition.onerror = () => {
-      isListening.value = false;
-    };
-
-    recognition.onend = () => {
-      isListening.value = false;
-    };
-  }
-});
+        recog.onend = () => {
+            isListening.value = false;
+        };
+        return recog;
+    }
+    return null;
+};
 
 const toggleVoice = () => {
-  if (!recognition) {
-    alert("Speech recognition not supported in this browser.");
-    return;
-  }
   if (isListening.value) {
-    recognition.stop();
+    recognition?.stop();
   } else {
+    recognition = initRecognition();
+    if (!recognition) {
+        alert("Speech recognition not supported in this browser.");
+        return;
+    }
     isListening.value = true;
-    recognition.start();
+    try {
+        recognition.start();
+    } catch (e) {
+        console.error("Speech start failed:", e);
+        isListening.value = false;
+    }
   }
 };
 

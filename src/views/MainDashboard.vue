@@ -33,6 +33,7 @@ import { useInvisibleFinance } from '../composables/useInvisibleFinance'; // Add
 import { web3Service } from '../services/web3Service';
 import { labelingCaller } from '../services/labelingCaller';
 import { useWebRTC } from '../composables/useWebRTC';
+import { useAmasAudioRecorder } from '../composables/useAmasAudioRecorder';
 
 // State
 const user = ref(null);
@@ -56,12 +57,13 @@ const isInitializing = ref(false);
 const activeView = ref('dashboard');
 const isSidebarOpen = ref(false);
 const isListening = ref(false);
+const isProcessingVoice = ref(false);
 const kernelSession = ref(null);
 const recognitionRef = ref(null);
+const { isRecording: isAmasRecording, startRecording, stopRecording, lastAudioUrl, lastAudioId } = useAmasAudioRecorder();
 // Sanctuary State
 const showSanctuary = ref(false);
 
-// ... existing refs
 const showContactBook = ref(false);
 const activeCall = ref(null); // { targetName, intentType, contact }
 const showFinancePopup = ref(false);
@@ -70,6 +72,8 @@ const liaisonService = ref(null);
 const { startCapture, stopCapture, isRecording } = useAntigravityRecorder();
 const notebookFilter = ref('all');
 const verifiedIntentCount = ref(0);
+
+const { playSanctuaryBell, playSemanticTone } = useAmasAudio();
 
 const recordVerifiedIntent = async () => {
     verifiedIntentCount.value++;
@@ -240,6 +244,7 @@ onMounted(() => {
           case 'SCHEDULE_EVENT':
              // Calendar Handling
              await handleScheduleEvent(intent);
+             playSemanticTone('task');
              break;
              
           case 'TODO_TASK':
@@ -254,11 +259,16 @@ onMounted(() => {
                         title: `✨ Task: ${result.task.title}`,
                         content: `- [ ] ${result.task.title}\n\n**Description:** ${result.task.description}\n\n*Reasoning:* ${result.task.reasoning}`,
                         timestamp: new Date(),
-                        metadata: { is_auto: true }
+                        metadata: { 
+                            is_auto: true,
+                            audioUrl: lastAudioUrl.value,
+                            audioId: lastAudioId.value
+                        }
                     };
                     notebookEntries.value.unshift(taskEntry);
                     notify('Tasks', 'Autonomous task generated.', 'success');
                     await recordVerifiedIntent(); // Phase C progression
+                    playSemanticTone('task');
                 }
              } catch (e) {
                 // Fallback to basic task if AI recall fails
@@ -267,10 +277,15 @@ onMounted(() => {
                     type: 'todo',
                     title: `✅ Task: ${intent.message}`,
                     content: `- [ ] ${intent.message}\n\n*Voice Entry*`,
-                    timestamp: new Date()
+                    timestamp: new Date(),
+                    metadata: { 
+                        audioUrl: lastAudioUrl.value,
+                        audioId: lastAudioId.value
+                    }
                 };
                 notebookEntries.value.unshift(taskEntry);
                 notify('Tasks', 'Task added (Basic).', 'success');
+                playSemanticTone('task');
              }
              break;
 
@@ -286,13 +301,19 @@ onMounted(() => {
                         title: `🌌 Recalled: ${result.task.title}`,
                         content: `- [ ] ${result.task.title}\n\n**Context:** ${result.task.description}\n\n*Recalled via Semantic Index*`,
                         timestamp: new Date(),
-                        metadata: { is_recalled: true }
+                        metadata: { 
+                            is_recalled: true,
+                            audioUrl: lastAudioUrl.value,
+                            audioId: lastAudioId.value
+                        }
                     };
                     notebookEntries.value.unshift(taskEntry);
                     notify('Primal Interface', `Recalled: ${result.task.title}`, 'success');
+                    playSemanticTone('reflection');
                 }
              } catch (e) {
                 notify('Recall Error', 'Semantic resonance too low.', 'error');
+                playSemanticTone('error');
              }
              break;
 
@@ -309,16 +330,19 @@ onMounted(() => {
              }
              showVideoOverlay.value = true;
              await recordVerifiedIntent();
+             playSemanticTone('reflection');
              break;
 
           case 'MINT_FACT':
              // Atomic Mint / OKE Protocol / Opal Routing
              notify('Atomic Mint', `Routing fact extraction to Opal...`, 'info');
              await handleMintFactIntent(intent);
+             playSemanticTone('reflection');
              break;
              
           case 'NAVIGATE':
              handleNavigationIntent(intent);
+             playSemanticTone('reflection');
              break;
              
           case 'NOTEBOOK_MEMO':
@@ -326,8 +350,18 @@ onMounted(() => {
              // 4. Default: Secretary Memo (Robust)
              // Even if this fails, we catch it and save raw transcript
              const secretaryEntry = await processSecretaryNote(transcript);
+             if (secretaryEntry.metadata) {
+                 secretaryEntry.metadata.audioUrl = lastAudioUrl.value;
+                 secretaryEntry.metadata.audioId = lastAudioId.value;
+             } else {
+                 secretaryEntry.metadata = { 
+                     audioUrl: lastAudioUrl.value,
+                     audioId: lastAudioId.value 
+                 };
+             }
              notebookEntries.value.unshift(secretaryEntry);
              notify('Notebook', 'Memo saved.', 'success');
+             playSemanticTone('reflection');
              break;
         }
         
@@ -336,6 +370,7 @@ onMounted(() => {
 
       } catch (finalError) {
         console.error('Critical Voice Error, saving raw:', finalError);
+        playSemanticTone('error');
         // Emergency Fallback: Save raw text
         notebookEntries.value.unshift({
             id: Date.now().toString(),
@@ -343,7 +378,11 @@ onMounted(() => {
             title: 'Quick Note (Raw)',
             content: transcript,
             timestamp: new Date(),
-            metadata: { error: finalError.message }
+            metadata: { 
+                error: finalError.message,
+                audioUrl: lastAudioUrl.value,
+                audioId: lastAudioId.value
+            }
         });
         notify('System', 'Saved as raw note due to error.', 'warning');
       } finally {
@@ -427,11 +466,22 @@ onMounted(() => {
         return '0x' + Math.abs(hash).toString(16).padStart(64, '0').substring(0, 16) + '... (Amane Verified)';
     };
 
-    onMounted(async () => {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SpeechRecognition) {
+    // Helper for mobile UX
+    const copyUrlToClipboard = () => {
+        navigator.clipboard.writeText(window.location.href);
+        notify('System', 'URL copied to clipboard. Please open in Safari/Chrome.', 'success');
+    };
+
+  // Speech Recognition Management
+  const initSpeechRecognition = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      notify('System', 'Speech Recognition not supported in this browser.', 'error');
+      return null;
+    }
+
     const recognition = new SpeechRecognition();
-    recognition.continuous = false; // Keep it short and accurate
+    recognition.continuous = false; 
     recognition.interimResults = false;
     recognition.lang = 'ja-JP'; 
 
@@ -442,19 +492,31 @@ onMounted(() => {
 
     recognition.onerror = (event) => {
         console.error("Speech Error:", event.error);
+        isListening.value = false;
+
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isInstagram = /Instagram/.test(navigator.userAgent);
+        const isGmail = /Gmail/.test(navigator.userAgent);
+        const isInApp = isInstagram || isGmail || /FBAN|FBAV/.test(navigator.userAgent);
+
         if (event.error === 'not-allowed') {
             notify('Voice Error', 'Microphone access denied. Please check browser settings.', 'error');
-            isListening.value = false;
+        } else if (event.error === 'service-not-allowed') {
+            if (isIOS && isInApp) {
+                notify('In-App Browser detected', 'Speech recognition is blocked in this app. Please open in Safari/Chrome.', 'warning', [
+                    { label: 'Copy URL', primary: true, onClick: (id) => { removeNotification(id); copyUrlToClipboard(); } }
+                ]);
+            } else {
+                notify('Voice Error', 'Speech service unavailable. Try a direct user gesture or different browser.', 'error');
+            }
         } else if (event.error === 'no-speech') {
-            // Just silence, restart if we were expecting input? No, stop for now to avoid loops.
-            notify('Voice', 'No speech detected.', 'warning');
-            isListening.value = false; 
+            notify('Voice', 'No speech detected. Try speaking closer to the mic.', 'warning');
         } else if (event.error === 'network') {
             notify('Voice Error', 'Network error. Please check connection.', 'error');
-             isListening.value = false;
+        } else if (event.error === 'aborted') {
+            console.log("Speech recognition aborted.");
         } else {
             notify('Voice Error', `Error: ${event.error}`, 'error');
-            isListening.value = false;
         }
     };
 
@@ -464,23 +526,19 @@ onMounted(() => {
           await handleVoiceTranscription(transcript);
       }
     };
-    // ... existing code ...
 
     recognition.onend = () => {
       isListening.value = false;
-      // If we stopped listening but didn't process anything (and didn't manually stop), notify user
-      // Note: This is a simple heuristic. Ideally we track if a result was received.
-      // notify('Voice', 'Session Ended', 'info');
     };
 
-    recognitionRef.value = recognition;
-  } else {
-      notify('System', 'Speech Recognition not supported in this browser.', 'error');
-  }
-  
-  // existing onMounted logic...
-  const myPeerId = await peerService.initialize();
-});
+    return recognition;
+  };
+
+  onMounted(async () => {
+    // We no longer initialize recognition here globally to avoid stale state
+    
+    const myPeerId = await peerService.initialize();
+  });
 
 // Save messages and notebook when they change
 watch(messages, (newMessages) => {
@@ -584,26 +642,58 @@ const handleSendMessage = async (text) => {
   }
 };
 
-// Handle voice toggle
-const handleToggleVoice = () => {
-  if (isListening.value) {
-    recognitionRef.value?.stop();
-  } else {
-    try {
-      recognitionRef.value?.start();
-    } catch (e) {
-      recognitionRef.value?.stop();
-      setTimeout(() => recognitionRef.value?.start(), 100);
+// Handle voice toggle: Unified Robust Mode
+const handleToggleVoice = async () => {
+    // Determine context (In-app browsers use the more robust MediaRecorder mode)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isInApp = /Instagram|FBAV|FBAN|Gmail/.test(navigator.userAgent);
+    const useRobustMode = true; // defaulting to robust mode to solve the 2-3s error definitively
+
+    if (isListening.value || isAmasRecording.value) {
+        if (useRobustMode) {
+            isProcessingVoice.value = true;
+            notify('Processing', 'Analyzing voice with Amane AI...', 'info');
+            const transcript = await stopRecording();
+            isListening.value = false;
+            isProcessingVoice.value = false;
+            
+            if (transcript) {
+                await handleVoiceTranscription(transcript);
+            } else {
+                notify('Voice', 'No speech detected or analysis failed.', 'warning');
+            }
+        } else {
+            // Old streaming mode (keep for desktop Chrome if needed, but not for this mobile fix)
+            recognitionRef.value?.stop();
+            isListening.value = false;
+        }
+    } else {
+        if (useRobustMode) {
+            try {
+                await startRecording();
+                isListening.value = true;
+                notify('Voice', 'AI Recording Active (Speak clearly)', 'success');
+            } catch (e) {
+                console.error("Recording start failed:", e);
+                notify('System Error', 'Microphone access denied or blocked by app.', 'error', [
+                    { label: 'Copy URL', primary: true, onClick: copyUrlToClipboard }
+                ]);
+                isListening.value = false;
+            }
+        } else {
+            const freshRecognition = initSpeechRecognition();
+            if (freshRecognition) {
+                recognitionRef.value = freshRecognition;
+                freshRecognition.start();
+            }
+        }
     }
-  }
-  
-  // App.vue (Parent) にエージェントの起動を同期するよう指令を出す
-  // (isListening の値が反転する前のタイミングなので、反転後の期待値を送る)
-  emit('action', {
-      type: 'amas-agent-command',
-      command: 'toggle_voice',
-      data: { isListening: !isListening.value }
-  });
+    
+    emit('action', {
+        type: 'amas-agent-command',
+        command: 'toggle_voice',
+        data: { isListening: isListening.value }
+    });
 };
 
 // Handle image import
@@ -1094,6 +1184,7 @@ const navigateTo = (view) => {
         v-if="activeView === 'dashboard'" 
         :user="user" 
         :isListening="isListening" 
+        :lastAudioUrl="lastAudioUrl"
         @toggleVoice="handleToggleVoice"
         @import="handleImport"
         @vision="handleVideoChatClick"
@@ -1112,6 +1203,7 @@ const navigateTo = (view) => {
         :entries="notebookEntries" 
         :filter="notebookFilter"
         :isListening="isListening"
+        :lastAudioUrl="lastAudioUrl"
         @trigger-sanctuary="handleSanctuaryTrigger"
         @save-diary="handleManualDiaryEntry"
         @update-filter="(val) => notebookFilter = val"

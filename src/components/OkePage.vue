@@ -219,18 +219,29 @@ const playBell = () => {
  * ON-DEVICE SPEECH RECOGNITION (Privacy Implementation)
  * Leveraging Chrome 139+ On-device Speech API if available.
  */
+const initRecognition = () => {
+    if (typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recog = new SpeechRec();
+        recog.continuous = false;
+        recog.lang = 'ja-JP';
+        recog.onresult = (event) => {
+            voiceTranscript.value = event.results[0][0].transcript;
+            console.log('[OKE] On-device Intent Captured:', voiceTranscript.value);
+            isRecording.value = false;
+        };
+        recog.onerror = (e) => {
+            console.error('[OKE] Speech Error:', e.error);
+            isRecording.value = false;
+        };
+        recog.onend = () => {
+            isRecording.value = false;
+        };
+        return recog;
+    }
+    return null;
+};
 let recognition = null;
-if (typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRec();
-    recognition.continuous = false;
-    recognition.lang = 'ja-JP';
-    recognition.onresult = (event) => {
-        voiceTranscript.value = event.results[0][0].transcript;
-        console.log('[OKE] On-device Intent Captured:', voiceTranscript.value);
-        isRecording.value = false;
-    };
-}
 
 const handleLogin = async () => {
   viewState.value = 'app';
@@ -288,9 +299,19 @@ const toggleVoiceInput = () => {
         isRecording.value = false;
     } else {
         voiceTranscript.value = '';
-        recognition?.start();
-        isRecording.value = true;
-        if (universeGen.value) universeGen.value.toggleAudio();
+        recognition = initRecognition();
+        if (!recognition) {
+            alert('Speech recognition not supported in this browser.');
+            return;
+        }
+        try {
+            recognition.start();
+            isRecording.value = true;
+            if (universeGen.value) universeGen.value.toggleAudio();
+        } catch (e) {
+            console.error('[OKE] Start failed:', e);
+            isRecording.value = false;
+        }
     }
 };
 

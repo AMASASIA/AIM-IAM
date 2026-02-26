@@ -8,6 +8,7 @@ import DiscoveryPanel from './DiscoveryPanel.vue';
 import { collection, addDoc } from 'firebase/firestore';
 import { firestore } from '../firebase';
 import { enhancedExtractInsights, mockExtractInsights, parseInsightsToNotebookEntry } from '../services/discoveryService';
+import { audioStorageService } from '../services/audioStorageService';
 import MeridiemTimeline from './MeridiemTimeline.vue';
 
 const props = defineProps({
@@ -20,7 +21,8 @@ const props = defineProps({
     type: String,
     default: 'all'
   },
-  isListening: Boolean
+  isListening: Boolean,
+  lastAudioUrl: String
 });
 
 const emit = defineEmits(['save-diary', 'update-filter', 'toggle-voice', 'nav', 'action', 'notify', 'trigger-sanctuary']);
@@ -186,6 +188,38 @@ const handleExtractInsights = async (params) => {
         isExtracting.value = false;
     }
 };
+
+const playRaw = () => {
+    if (props.lastAudioUrl) {
+        const audio = new Audio(props.lastAudioUrl);
+        audio.play().catch(e => console.warn("Audio play failed:", e));
+    }
+};
+
+const playAudioUrl = async (url, id) => {
+    try {
+        let audioBlob = null;
+        if (id) {
+            audioBlob = await audioStorageService.getAudio(id);
+        }
+        
+        const playbackUrl = audioBlob ? URL.createObjectURL(audioBlob) : url;
+        
+        if (playbackUrl) {
+            const audio = new Audio(playbackUrl);
+            audio.play().catch(e => console.warn("Entry audio play failed:", e));
+        } else {
+            console.warn("No audio source found for entry.");
+        }
+    } catch (e) {
+        console.error("Failed to play persistent audio:", e);
+        // Fallback to URL if ID fails
+        if (url) {
+            const audio = new Audio(url);
+            audio.play().catch(err => console.warn("Fallback play failed:", err));
+        }
+    }
+};
 </script>
 
 <template>
@@ -235,13 +269,24 @@ const handleExtractInsights = async (params) => {
 
       <!-- BOTTOM PAIR: Positioned between Tabs and Timeline -->
       <div class="flex flex-col items-center gap-12 py-8">
-          <div class="flex gap-4 md:gap-8">
+          <div class="flex gap-4 md:gap-8 relative">
               <button @click="toggleDiaryInput" title="Write Entry" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-2xl hover:scale-110 transition-all cursor-pointer group active:scale-95">
                 <Feather :size="32" class="group-hover:rotate-12 transition-transform duration-500" />
               </button>
               <button @click="$emit('toggle-voice')" title="Speak / Listen" :class="['w-16 h-16 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all cursor-pointer group active:scale-95 shadow-2xl', isListening ? 'bg-red-500 text-white scale-110 shadow-red-500/50' : 'bg-slate-900 text-cyan-400 shadow-cyan-100/20 hover:shadow-cyan-500/30']">
                 <component :is="isListening ? Zap : Mic" :size="32" :class="[isListening ? 'animate-pulse' : 'group-hover:-rotate-12 transition-transform duration-500']" />
               </button>
+
+              <!-- Tiny Play Raw Button (appears after recording) -->
+              <Transition enter-active-class="transition duration-500 ease-out" enter-from-class="opacity-0 scale-50" enter-to-class="opacity-100 scale-100">
+                  <button 
+                    v-if="lastAudioUrl && !isListening"
+                    @click="playRaw"
+                    class="absolute -right-4 -bottom-4 w-10 h-10 rounded-full bg-white/80 backdrop-blur-md border border-slate-200 shadow-lg flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-[60]"
+                  >
+                    <div class="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-slate-600 border-b-[5px] border-b-transparent ml-0.5" />
+                  </button>
+              </Transition>
           </div>
       </div>
 
@@ -364,6 +409,15 @@ const handleExtractInsights = async (params) => {
 
                   <!-- Actions -->
                   <div class="flex items-center gap-2">
+                       <button 
+                        v-if="entry.metadata?.audioUrl || entry.metadata?.audioId"
+                        @click="playAudioUrl(entry.metadata.audioUrl, entry.metadata.audioId)"
+                        class="px-4 py-2 rounded-full bg-red-50 text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95 flex items-center gap-2"
+                        title="Play Voice Recording"
+                      >
+                          <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                          Listen
+                      </button>
                       <button 
                         @click="openShareModal(entry)"
                         class="px-4 py-2 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 hover:text-slate-800 transition-all active:scale-95"

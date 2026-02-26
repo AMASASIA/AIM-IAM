@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { Eye, Upload, Fingerprint, Navigation, Keyboard } from 'lucide-vue-next';
 
 const props = defineProps({
   user: Object,
-  isListening: Boolean
+  isListening: Boolean,
+  lastAudioUrl: String
 });
 
 const emit = defineEmits(['toggleVoice', 'import', 'vision', 'textInput']);
@@ -12,6 +13,31 @@ const fileInputRef = ref(null);
 const shimmerRef = ref(null);
 const showTextInput = ref(false);
 const textInputValue = ref('');
+
+// 60-second Limit UI logic
+const recordingTime = ref(0);
+let timerInterval = null;
+
+watch(() => props.isListening, (newVal) => {
+    if (newVal) {
+        recordingTime.value = 0;
+        timerInterval = setInterval(() => {
+            recordingTime.value++;
+            if (recordingTime.value >= 60) {
+                emit('toggleVoice'); // Auto-stop at 1 minute
+            }
+        }, 1000);
+    } else {
+        clearInterval(timerInterval);
+    }
+});
+
+const playRaw = () => {
+    if (props.lastAudioUrl) {
+        const audio = new Audio(props.lastAudioUrl);
+        audio.play().catch(e => console.warn("Audio play failed:", e));
+    }
+};
 
 const handleImportClick = () => {
   fileInputRef.value?.click();
@@ -76,19 +102,39 @@ onUnmounted(() => {
               isListening ? 'scale-110 shadow-[0_0_100px_rgba(0,0,0,0.3)]' : 'aura-breathe hover:scale-105 active:scale-95'
             ]"
           >
-            <div class="flex items-end gap-1.5 h-12">
-               <div v-for="(h, i) in [1, 2, 3, 2, 1]" :key="i" :class="['w-1.5 bg-white rounded-full transition-all duration-300', isListening ? 'animate-voice-bar' : '']" :style="{ height: `${h * 10}px`, animationDelay: `${i * 100}ms`, animationDuration: '0.5s' }" />
+            <div v-if="!isListening" class="flex items-end gap-1.5 h-12">
+               <div v-for="(h, i) in [1, 2, 3, 2, 1]" :key="i" :class="['w-1.5 bg-white rounded-full transition-all duration-300']" :style="{ height: `${h * 10}px` }" />
+            </div>
+            <div v-else class="flex flex-col items-center gap-2">
+                <!-- Recording Counter: 1 Minute limit -->
+                <span class="text-2xl font-mono-light tracking-widest">{{ recordingTime }}s</span>
+                <div class="flex items-end gap-1.5 h-6">
+                    <div v-for="(h, i) in [2, 4, 3, 5, 2]" :key="i" :class="['w-1 bg-white/60 rounded-full animate-voice-bar']" :style="{ height: `${h * 4}px`, animationDelay: `${i * 100}ms` }" />
+                </div>
             </div>
           </button>
+
+          <!-- Tiny Play Raw Button (appears after recording) -->
+          <Transition enter-active-class="transition duration-500 ease-out" enter-from-class="opacity-0 scale-50" enter-to-class="opacity-100 scale-100">
+              <button 
+                v-if="lastAudioUrl && !isListening"
+                @click="playRaw"
+                class="absolute -right-4 bottom-4 w-12 h-12 rounded-full bg-white/80 backdrop-blur-md border border-black/5 shadow-lg flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-[60]"
+              >
+                <div class="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-black border-b-[6px] border-b-transparent ml-1" />
+              </button>
+          </Transition>
         </div>
 
         <div class="text-center space-y-4">
-           <p class="text-[10px] font-black uppercase tracking-[0.4em] text-black/20">Voice Input</p>
+           <p class="text-[10px] font-black uppercase tracking-[0.4em] text-black/20">
+             {{ isListening ? 'Capturing Frequency' : 'Voice Input' }}
+           </p>
            <h3 
              ref="shimmerRef"
              class="font-serif-luxury text-[26px] md:text-[32px] italic leading-tight tracking-tight px-6 interactive-shimmer"
            >
-             "Instantly moves to your Notebook"
+             "{{ isListening ? 'Listening to your intent...' : 'Instantly moves to your Notebook' }}"
            </h3>
         </div>
     </div>
