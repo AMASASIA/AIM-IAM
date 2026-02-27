@@ -1062,128 +1062,10 @@ const navigateTo = (view) => {
             <component :is="item.icon" :size="16" />
             {{ item.label }}
           </button>
-
-          <!-- New System Integrations -->
-          <!-- New System Integrations -->
-          <button @click="router.push('/oke')" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-blue-600 hover:bg-blue-600/10">
-              <Activity :size="16" />
-              <span class="font-serif-luxury text-base tracking-widest">OKE</span>
-          </button>
-
-          <button @click="router.push('/deployment')" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-purple-600 hover:bg-purple-600/10">
-              <Compass :size="16" />
-              <span class="font-serif-luxury text-base tracking-widest">Deploy Dash</span>
-          </button>
-
-          
-
-
-
-          <!-- Sidebar Functions (Moved from Header) -->
-          <div class="pt-4 border-t border-black/5 space-y-2">
-              <button @click="handleVideoChatClick" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-black/60 hover:text-black hover:bg-black/5">
-                  <Video :size="16" />
-                  <span>Video Bridge</span>
-              </button>
-
-              <button @click="handleFinanceClick" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-emerald-600 hover:bg-emerald-500/10">
-                  <CreditCard :size="16" />
-                  <span>Invisible Finance</span>
-              </button>
-
-              <button @click="handleExportNotebook" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-gray-500 hover:text-black hover:bg-black/5">
-                  <Box :size="16" />
-                  <span>Archive Data</span>
-              </button>
-
-              <button @click="showOKEModal = true" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-black/60 hover:text-black hover:bg-black/5">
-                  <ShieldCheck :size="16" />
-                  <span>OKE Certification</span>
-              </button>
-
-              <button @click="handleMapClick" class="w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all text-blue-600 hover:bg-blue-600/10">
-                  <MapIcon :size="16" />
-                  <span>AI Map</span>
-              </button>
-
-              <button @click="toggleRecording" :class="['w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all', isRecording ? 'text-red-500 bg-red-500/10' : 'text-black/60 hover:text-black hover:bg-black/5']">
-                  <div v-if="isRecording" class="w-4 h-4 bg-red-500 rounded-sm animate-pulse"></div>
-                  <div v-else class="w-4 h-4 border-2 border-current rounded-full"></div>
-                  <span>Recorder {{ isRecording ? '(ON)' : '(OFF)' }}</span>
-              </button>
-
-              <button @click="handlePresenceTrigger" :class="['w-full flex items-center gap-4 p-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all', isSanctuaryActive ? 'text-teal-600 bg-teal-500/10' : 'text-black/40']">
-                  <Fingerprint :size="16" />
-                  <span>Presence Protocol</span>
-              </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Header -->
-    <header class="fixed top-0 left-0 right-0 px-10 py-10 flex justify-between items-center z-[350]">
-      <div class="flex items-center gap-6">
-        <button @click="isSidebarOpen = true" class="p-3 bg-black text-white rounded-xl shadow-xl hover:scale-105 transition-transform active:scale-95">
-            <Menu :size="18" />
-        </button>
-        <div class="hidden md:block">
-          <div class="flex items-center gap-2">
-            <span class="relative flex h-2 w-2">
-              <span :class="['animate-ping absolute inline-flex h-full w-full rounded-full opacity-75', isSanctuaryActive ? 'bg-teal-400' : 'bg-[#c0a080]']"></span>
-              <span :class="['relative inline-flex rounded-full h-2 w-2', isSanctuaryActive ? 'bg-teal-500' : 'bg-[#8b7e74]']"></span>
-            </span>
-            <span :class="['text-[9px] tracking-widest font-bold uppercase', isSanctuaryActive ? 'text-teal-600' : 'text-[#8b7e74]']">
-              {{ isSanctuaryActive ? 'Sanctuary: Active' : 'Resonance: Online' }}
-            </span>
-          </div>
-          <p class="text-[7px] text-black/30 tracking-widest uppercase mt-1">
-            {{ isSanctuaryActive ? 'JP18991 Proximity Protocol' : 'Amane Protocol Sync Active' }}
-          </p>
-        </div>
-      </div>
-
-
-      <!-- Center Navigation Transitions -->
-      <!-- Center Navigation Restored: Notebook Only -->
-      <div class="absolute left-1/2 -translate-x-1/2 hidden lg:flex items-center">
-        <button @click="navigateTo('notebook')" :class="['group transition-all hover:scale-105 active:scale-95', activeView === 'notebook' ? 'opacity-100' : 'opacity-60 hover:opacity-100']">
-          <span class="font-serif-luxury text-7xl italic tracking-tighter leading-none text-[#1A1A1A]">Notebook</span>
-        </button>
-      </div>
-
-      <!-- Right: Invisible Finance Entry -->
-      <div class="flex items-center gap-4">
-        <button 
-          @click="showFinancePopup = true" 
-          @pointerdown="handleFinancePointerDown"
-          @pointermove="handleFinancePointerMove"
-          @pointerup="handleFinancePointerUp"
-          @pointerleave="handleFinancePointerUp"
-          :class="[
-            'flex items-center gap-3 px-6 py-3 rounded-2xl shadow-2xl border transition-all active:scale-95 group touch-none',
-            (isFinHolding || isListening || isProcessingVoice)
-              ? 'bg-emerald-900 border-emerald-400 scale-110 ring-4 ring-emerald-500/20' 
-              : 'bg-[#1A1A1A] border-white/10 hover:scale-105'
-          ]"
-        >
-          <div :class="['w-2 h-2 rounded-full animate-pulse', (isFinHolding || isListening || isProcessingVoice) ? 'bg-white' : 'bg-emerald-400']"></div>
-          <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
-            {{ isProcessingVoice ? 'Processing...' : (isFinHolding || isListening ? 'Recording...' : 'Fairy Vert') }}
-          </span>
-          <span class="text-sm">🧚</span>
-        </button>
-
-        <!-- Menu Button (Far Right) -->
-        <button @click="isSidebarOpen = true" class="p-3 bg-white/80 backdrop-blur-md text-black rounded-xl shadow-lg border border-black/5 hover:bg-black hover:text-white transition-all">
-            <Menu :size="18" />
-        </button>
-      </div>
-    </header>
-
-    <!-- Main Content -->
+  <div v-else class="h-screen w-full flex flex-col bg-white dark:bg-black transition-colors duration-1000 overflow-hidden relative">
+    <!-- Main Content: Exclusively Tive AI (AIM-IAM) Experience -->
     <main class="flex-1 relative overflow-hidden flex flex-col min-h-0">
-      <!-- Unified Tive Bridge Interface (Background Orchestration Mode) -->
+      <!-- 1st & 2nd Page: Tive Orb & Result Screen (Unified in PrimaryInterface) -->
       <PrimaryInterface 
         v-if="activeView === 'dashboard'" 
         :isListening="isListening" 
@@ -1194,12 +1076,8 @@ const navigateTo = (view) => {
         @viewMemos="activeView = 'notebook'"
         @textInput="handleSendMessage"
       />
-      <ChatMessaging 
-        v-if="activeView === 'chat'" 
-        :messages="messages" 
-        :isLoading="isLoading"
-        @sendMessage="handleSendMessage" 
-      />
+
+      <!-- 3rd Page: Notebook View (Historical Intelligence) -->
       <NotebookView 
         v-if="activeView === 'notebook'" 
         :user="user" 
@@ -1212,87 +1090,27 @@ const navigateTo = (view) => {
         @update-filter="(val) => notebookFilter = val"
         @toggle-voice="handleToggleVoice"
         @nav="(view) => {
-            if (view === 'oke') router.push('/oke');
-            else if (view === 'deployment') router.push('/deployment');
-            else if (view === 'map') handleMapClick();
+            if (view === 'dashboard') activeView = 'dashboard';
+            else if (view === 'map') activeView = 'aimap';
         }"
-        @action="(type) => {
-            if (type === 'video') handleVideoChatClick();
-            else if (type === 'finance') handleFinanceClick();
-            else if (type === 'recorder') toggleRecording();
-        }"
+        @action="toggleRecording"
         @notify="(t, m, type) => notify(t, m, type)"
       />
+
+      <!-- Logs (Optional Background) -->
       <SystemLogs 
         v-if="activeView === 'log'"
         :entries="notebookEntries"
       />
     </main>
 
-    <!-- Invisible Finance Popup (Labeling Caller UI) -->
-    <InvisibleFinancePopup 
-      v-if="showFinancePopup" 
-      :targetName="activeCall?.targetName"
-      :intentType="activeCall?.intentType"
-      @close="showFinancePopup = false"
-      @agreed="handleCallAgreement"
-    />
-
-    <!-- Invisible Finance Dashboard -->
-    <InvisibleFinance
-      v-if="showInvisibleFinance"
-      :intentCount="verifiedIntentCount"
-      @close="showInvisibleFinance = false"
-    />
-
-    <!-- Contact Book Modal -->
-    <ContactBook 
-      v-if="showContactBook" 
-      @close="showContactBook = false"
-      @connect="handleContactConnect"
-    />
-
-    <!-- P2P Video Overlay -->
-    <VideoOverlay 
-      v-if="showVideoOverlay"
-      :localStream="localStream"
-      :remoteStream="remoteStream"
-      :targetName="activeCall?.targetName || 'Self-Resonance'"
-      @endCall="handleEndCall"
-      @commerce-receipt="handleCommerceReceipt"
-    />
-
-    <!-- OKE Modal -->
-    <div v-if="showOKEModal" class="fixed inset-0 z-[5000] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6" @click.self="showOKEModal = false">
-        <div class="max-w-md w-full animate-fade-in-up">
-             <AmaneCertificationCard 
-                :fact="{
-                    model: 'Prototype AIM-3',
-                    grade: 9.8,
-                    hash: '6ac3f2d1e4a5b6c7d8e9f0a1b2c3d4e5',
-                    shortId: '6ac3f2d1'
-                }"
-             />
-             <div class="mt-4 text-center">
-                 <button @click="showOKEModal = false" class="text-[10px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Close Certification</button>
-             </div>
-        </div>
-    </div>
-
-    <!-- Sanctuary Popup (Zen UI) -->
-    <SanctuaryPopup 
-        v-if="showSanctuary"
-        :show="showSanctuary"
-        @close="showSanctuary = false"
-        @confirm="handleSanctuaryConfirm"
-    />
-
-    <!-- Notifications -->
+    <!-- Essential Utility Overlay -->
     <NotificationToast 
       :notifications="notifications" 
       @remove="removeNotification"
     />
-    <!-- Hidden Source for Visual Capture (Triple Mint) -->
+
+    <!-- Hidden resonance sources -->
     <video ref="videoSource" style="display:none" autoplay playsinline muted></video>
   </div>
 </template>
