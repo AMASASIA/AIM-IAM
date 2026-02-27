@@ -653,6 +653,10 @@ const handleToggleVoice = async () => {
         if (useRobustMode) {
             isProcessingVoice.value = true;
             notify('Processing', 'Analyzing voice with Amane AI...', 'info');
+            
+            // CRITICAL: Immediate transition to Card (Notebook) view
+            activeView.value = 'notebook';
+            
             const transcript = await stopRecording();
             isListening.value = false;
             isProcessingVoice.value = false;
