@@ -7,6 +7,7 @@ import NotebookView from '../components/NotebookView.vue';
 import PrimaryInterface from '../components/PrimaryInterface.vue';
 import NotificationToast from '../components/NotificationToast.vue';
 import { useNotifications } from '../composables/useNotifications';
+import ResultScreen from '../components/ResultScreen.vue';
 import { createKernelSession, sendMessage, analyzeIntent } from '../services/intentService.js';
 import { useAmasSecretary } from '../composables/useAmasSecretary'; 
 import { useAmasAudio } from '../composables/useAmasAudio';
@@ -27,6 +28,10 @@ const kernelSession = ref(null);
 const { startRecording, stopRecording, lastAudioUrl, lastAudioId } = useAmasAudioRecorder();
 const { handleVoiceNote: processSecretaryNote } = useAmasSecretary();
 const { playSemanticTone } = useAmasAudio();
+
+// Result State
+const resultContent = ref('');
+const isResultThinking = ref(true);
 
 // Load data on mount
 onMounted(() => {
@@ -98,11 +103,23 @@ const handleToggleVoice = async () => {
     if (isListening.value) {
         isProcessingVoice.value = true;
         notify('Processing', 'Analyzing voice...', 'info');
-        activeView.value = 'notebook';
+        
         const transcript = await stopRecording();
         isListening.value = false;
         isProcessingVoice.value = false;
-        if (transcript) await handleVoiceTranscription(transcript);
+        
+        // "Fluffy" Transition Transition (1.5s delay as requested)
+        setTimeout(async () => {
+            activeView.value = 'result';
+            isResultThinking.value = true;
+            resultContent.value = '';
+
+            if (transcript) {
+                await handleVoiceTranscription(transcript);
+            } else {
+                activeView.value = 'dashboard';
+            }
+        }, 1500);
     } else {
         try {
             await startRecording();
@@ -121,11 +138,17 @@ const handleVoiceTranscription = async (transcript) => {
     try {
         const intent = await analyzeIntent(transcript);
         const secretaryEntry = await processSecretaryNote(transcript);
+        
+        // Update Result Screen with AI Content
+        resultContent.value = secretaryEntry.content;
+        isResultThinking.value = false;
+
         notebookEntries.value.unshift(secretaryEntry);
         playSemanticTone('reflection');
         notify('Notebook', 'Insight captured.', 'success');
     } catch (e) {
         console.error('Transcription Error:', e);
+        activeView.value = 'dashboard';
     } finally {
         notebookEntries.value = notebookEntries.value.filter(e => e.id !== processingId);
     }
@@ -167,6 +190,16 @@ const handleManualDiaryEntry = (content) => {
         @save-diary="handleManualDiaryEntry"
         @toggle-voice="handleToggleVoice"
         @nav="(view) => { if (view === 'dashboard') activeView = 'dashboard'; }"
+      />
+
+      <!-- Result Screen (Page 2) -->
+      <ResultScreen 
+        v-if="activeView === 'result'"
+        :content="resultContent"
+        :isThinking="isResultThinking"
+        @close="activeView = 'dashboard'"
+        @save="activeView = 'notebook'"
+        @oke="activeView = 'dashboard'"
       />
 
     </main>

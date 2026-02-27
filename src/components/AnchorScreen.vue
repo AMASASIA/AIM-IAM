@@ -15,26 +15,14 @@ const handleGoogleLogin = () => {
 </script>
 
 <template>
-  <div class="login-root fixed inset-0 flex items-center justify-center p-6 bg-white dark:bg-black transition-colors duration-1000">
+  <div class="login-root fixed inset-0 flex items-center justify-center p-6 bg-black">
     <div class="login-container w-full max-w-sm flex flex-col items-center animate-fade-in-up">
       
-      <!-- Minimalist Logo -->
-      <div class="mb-16 text-center space-y-4">
-          <div class="relative w-16 h-16 mx-auto mb-8">
-              <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-2xl rotate-45 opacity-20 animate-pulse"></div>
-              <div class="absolute inset-2 bg-current rounded-full flex items-center justify-center">
-                  <span class="text-white dark:text-black font-black text-xs tracking-tighter">◎</span>
-              </div>
-          </div>
-          <h1 class="text-4xl font-extralight tracking-tighter dark:text-white text-black">Tive◎AI</h1>
-          <p class="text-[10px] uppercase tracking-[0.6em] opacity-30">Harmonized Intelligence</p>
-      </div>
-
-      <!-- Google Button -->
+      <!-- Only the Google Button -->
       <button 
         @click="handleGoogleLogin"
         :disabled="isLoading"
-        class="group relative w-full flex items-center justify-center gap-4 py-5 px-8 bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all active:scale-95 disabled:opacity-50"
+        class="group relative w-full flex items-center justify-center gap-4 py-6 px-8 bg-zinc-900 border border-white/5 rounded-2xl shadow-2xl hover:scale-[1.02] transition-all active:scale-95 disabled:opacity-50"
       >
         <div class="w-6 h-6 flex items-center justify-center">
             <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
@@ -44,24 +32,17 @@ const handleGoogleLogin = () => {
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
         </div>
-        <span class="text-sm font-bold tracking-tight dark:text-white text-black">Sign in with Google</span>
+        <span class="text-sm font-bold tracking-tight text-white">Sign in with Google</span>
         
-        <!-- Loading Spinner overlay -->
-        <div v-if="isLoading" class="absolute inset-0 bg-white/80 dark:bg-black/80 flex items-center justify-center rounded-2xl">
-            <div class="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <div v-if="isLoading" class="absolute inset-0 bg-black/80 flex items-center justify-center rounded-2xl">
+            <div class="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
         </div>
       </button>
 
-      <p class="mt-8 text-[11px] opacity-20 text-center leading-loose">
-        By continuing, you agree to connect your consciousness<br/>to the Tive◎AI Amane Protocol.
+      <p class="mt-12 text-[10px] opacity-20 text-white text-center tracking-[0.2em] font-light">
+        AMANE PROTOCOL
       </p>
 
-    </div>
-
-    <!-- Background Decoration -->
-    <div class="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div class="absolute top-[20%] left-[10%] w-[40vw] h-[40vw] bg-indigo-500/5 blur-[120px] rounded-full"></div>
-        <div class="absolute bottom-[20%] right-[10%] w-[40vw] h-[40vw] bg-purple-500/5 blur-[120px] rounded-full"></div>
     </div>
   </div>
 </template>

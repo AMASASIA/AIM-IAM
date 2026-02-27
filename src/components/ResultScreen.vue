@@ -1,124 +1,117 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { Share2, Book, Check, PenTool, X, Trash2, ArrowLeft } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { Share2, Book, Check, PenTool, X, Trash2, ArrowLeft, Plus, Mic, Square } from 'lucide-vue-next';
 import { i18n } from '../services/i18n';
-import AmanoOrb from './AmanoOrb.vue';
 
 const props = defineProps({
-    content: { type: String, default: "Thinking.." },
+    content: { type: String, default: "" },
     isThinking: { type: Boolean, default: true }
 });
 
 const emit = defineEmits(['close', 'save', 'oke']);
 
 const isSigning = ref(false);
-const showOrb = ref(false);
-const longPressTimer = ref(null);
-const canvasRef = ref(null);
-let ctx = null;
-
-const startLongPress = () => {
-    longPressTimer.value = setTimeout(() => {
-        showOrb.value = true;
-    }, 3000);
-};
-
-const cancelLongPress = () => {
-    clearTimeout(longPressTimer.value);
-};
-
-const handleSign = () => {
-    isSigning.value = !isSigning.value;
-};
 
 const handleCopy = () => {
     navigator.clipboard.writeText(props.content);
-    alert('Copied to clipboard');
-};
-
-const handleOKE = () => {
-    emit('oke');
 };
 </script>
 
 <template>
-  <div class="fixed inset-0 z-[100] bg-white dark:bg-black transition-colors duration-1000 flex flex-col items-center justify-center p-6 sm:p-12 overflow-hidden">
+  <div class="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-6 overflow-hidden font-sans">
     
-    <!-- Top Nav -->
-    <header class="absolute top-10 w-full px-10 flex justify-between items-center z-[110]">
-        <button @click="$emit('close')" class="flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
-            <ArrowLeft :size="20" />
-            <span class="text-[10px] font-black uppercase tracking-widest">{{ i18n.t('history') }}</span>
-        </button>
-        <div class="flex items-center gap-2">
-            <div class="w-1.5 h-1.5 bg-current rounded-full"></div>
+    <!-- Top Nav (Minimalist like Reference) -->
+    <header class="absolute top-0 w-full p-10 flex justify-between items-center z-[110]">
+        <div class="flex items-center gap-4 text-white/20">
+            <Menu :size="20" />
             <span class="text-[10px] font-black uppercase tracking-[0.3em]">Tive◎AI</span>
+        </div>
+        <div class="flex items-center gap-4 text-white/20">
+            <div class="w-5 h-5 border border-white/20 rounded-md"></div>
         </div>
     </header>
 
-    <!-- Main Card -->
-    <div 
-        class="card-container relative group"
-        @mousedown="startLongPress" @touchstart="startLongPress"
-        @mouseup="cancelLongPress" @touchend="cancelLongPress"
-    >
-        <div class="absolute -inset-20 bg-gradient-to-br from-pink-500/10 via-purple-500/10 to-transparent blur-[120px] -z-10 animate-pulse"></div>
-
-        <div class="main-card relative bg-white/5 dark:bg-white/[0.02] backdrop-blur-3xl border border-white/10 dark:md:p-20 p-10 rounded-[4rem] shadow-2xl overflow-hidden flex flex-col items-center justify-center text-center">
+    <!-- Main Card (The "Thinking" Container) -->
+    <div class="relative w-full max-w-[450px] aspect-square animate-in fade-in zoom-in duration-700">
+        <div class="main-card w-full h-full bg-white rounded-[4rem] shadow-[0_0_100px_rgba(255,255,255,0.05)] flex flex-col items-center justify-center text-center p-12">
             
-            <div v-if="!showOrb" class="space-y-8">
-                <p class="text-[10px] font-black uppercase tracking-[0.6em] text-black/20 dark:text-white/20">Amano Resonance</p>
-                <h2 class="text-3xl sm:text-5xl font-extralight tracking-tighter leading-tight italic dark:text-white/90 text-black/90">
-                    {{ isThinking ? i18n.t('thinking') : content }}
+            <!-- Pulse Dot (Centered Pink Dot with Aura) -->
+            <div v-if="isThinking" class="mb-6 relative">
+                <div class="absolute inset-0 bg-[#FF007F] blur-xl opacity-40 animate-pulse scale-150"></div>
+                <div class="relative w-3.5 h-3.5 bg-[#FF007F] rounded-full shadow-[0_0_30px_#FF007F]">
+                    <div class="absolute inset-[3px] bg-white rounded-full opacity-60"></div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <h2 v-if="isThinking" class="text-3xl font-light tracking-[0.1em] text-black/40">
+                    Thinking..
                 </h2>
+                <div v-else class="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                    <div class="text-2xl sm:text-3xl font-light tracking-tight leading-relaxed text-black/90 max-h-[250px] overflow-y-auto px-4 custom-scrollbar">
+                        {{ content }}
+                    </div>
+                </div>
             </div>
-
-            <!-- Internal Orb (on Long Press) -->
-            <div v-if="showOrb" class="animate-in zoom-in duration-500">
-                <AmanoOrb :isListening="false" :isProcessing="true" />
-                <button @click="showOrb = false" class="absolute top-10 right-10 opacity-40 hover:opacity-100"><X /></button>
-            </div>
-
-            <!-- Signature Layer -->
-            <canvas v-show="isSigning" ref="canvasRef" class="absolute inset-0 z-20 cursor-crosshair"></canvas>
+            
+            <!-- Interactive Layer if needed -->
+            <canvas v-show="isSigning" class="absolute inset-0 z-20 cursor-crosshair rounded-[3.5rem]"></canvas>
         </div>
 
-        <!-- Float Actions (Card Top-Right) -->
-        <div class="absolute -top-4 -right-4 flex flex-col gap-2 z-[120]">
-             <button @click="handleSign" :class="['w-12 h-12 rounded-full flex items-center justify-center transition-all', isSigning ? 'bg-red-500 text-white' : 'bg-white/10 backdrop-blur-3xl border border-white/20']">
+        <!-- Action Float Buttons (Only when NOT thinking) -->
+        <div v-if="!isThinking" class="absolute -top-4 -right-4 flex flex-col gap-2 z-[120]">
+             <button @click="isSigning = !isSigning" :class="['w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-xl', isSigning ? 'bg-red-500 text-white' : 'bg-white text-black border border-black/5']">
                 <PenTool :size="18" />
              </button>
         </div>
     </div>
 
-    <!-- Bottom Actions -->
-    <div class="mt-16 flex flex-col items-center gap-10 z-[110] w-full max-w-md">
+    <!-- Bottom Action Bar (Matches Reference) -->
+    <div class="absolute bottom-12 w-full max-w-2xl px-8 flex flex-col items-center gap-8">
         
-        <div class="flex items-center gap-4 -space-x-3">
-            <button @click="handleCopy" class="action-btn bg-indigo-500/10 text-indigo-500 border-indigo-500/20 active:scale-95">
-                <Share2 :size="20" />
+        <!-- Action Buttons (Copy/OKE) when ready -->
+        <div v-if="!isThinking" class="flex items-center gap-6 animate-in fade-in zoom-in duration-500">
+            <button @click="handleCopy" class="w-16 h-16 rounded-3xl bg-white/10 border border-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-all">
+                <Share2 :size="22" />
             </button>
-            <button @click="handleOKE" class="action-btn bg-emerald-500/20 text-emerald-500 border-emerald-500/30 active:scale-95">
-                <Check :size="22" stroke-width="3" />
+            <button @click="$emit('oke')" class="w-16 h-16 rounded-3xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
+                <Check :size="28" stroke-width="3" />
+            </button>
+            <button @click="$emit('save')" class="w-48 h-16 rounded-3xl bg-white text-black text-[10px] font-black uppercase tracking-[0.4em] shadow-xl active:scale-95 transition-all">
+                {{ i18n.t('notebook') }}
             </button>
         </div>
 
-        <button @click="$emit('save')" class="w-full py-5 rounded-[2.5rem] bg-black dark:bg-white text-white dark:text-black text-xs font-black uppercase tracking-[0.4em] shadow-2xl hover:scale-[1.02] transition-transform">
-            {{ i18n.t('notebook') }}
-        </button>
-
-        <!-- Dynamic Input Bar -->
-        <div class="w-full relative mt-4">
-             <input 
+        <!-- Reference Input Bar -->
+        <div class="w-full relative flex items-center bg-[#1A1A1A] border border-white/5 rounded-full px-6 py-4 shadow-2xl">
+            <button class="text-white/40 hover:text-white transition-colors mr-4">
+                <Plus :size="20" />
+            </button>
+            <input 
                 type="text" 
                 :placeholder="i18n.t('ask')"
-                class="w-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-[2rem] px-8 py-5 text-sm focus:ring-1 focus:ring-current outline-none"
-             />
+                class="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/20"
+            />
+            <div class="flex items-center gap-4 ml-4">
+                <Mic :size="20" class="text-white/40" />
+                <div @click="$emit('close')" class="w-8 h-8 bg-white rounded-full flex items-center justify-center cursor-pointer">
+                    <Square :size="12" fill="black" class="text-black" />
+                </div>
+            </div>
         </div>
     </div>
 
   </div>
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar { width: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+
+.main-card {
+    transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+</style>
 
 <style scoped>
 .main-card {

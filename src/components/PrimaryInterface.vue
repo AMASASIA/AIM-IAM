@@ -116,6 +116,16 @@ onUnmounted(() => {
                         </button>
                     </div>
                 </div>
+
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest opacity-40 mb-3">{{ i18n.t('appearance') }}</p>
+                    <div class="flex gap-2">
+                        <button @click="toggleTheme" class="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-xl flex items-center justify-center gap-2 transition-all">
+                            <component :is="theme === 'dark' ? Sun : Moon" :size="14" />
+                            <span class="text-[9px] uppercase font-bold">{{ theme === 'dark' ? 'Light' : 'Dark' }}</span>
+                        </button>
+                    </div>
+                </div>
             </div>
             <button @click="showSettings = false" class="absolute top-4 right-4 opacity-40"><X :size="16" /></button>
         </div>
@@ -195,9 +205,16 @@ onUnmounted(() => {
 
 .light-mode .settings-card { background: rgba(255,255,255,0.9); border-color: rgba(0,0,0,0.1); }
 
-.tive-header { width: 100%; display: flex; justify-content: space-between; align-items: center; z-index: 50; }
-.brand { display: flex; align-items: center; gap: 12px; }
-.dot { width: 8px; height: 8px; background-color: currentColor; border-radius: 50%; }
+.tive-header { 
+    width: 100%; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    z-index: 50; 
+    padding: 20px 10px; 
+}
+.brand { display: flex; align-items: center; gap: 12px; margin-left: 10px; }
+.dot { width: 6px; height: 6px; background-color: currentColor; border-radius: 50%; opacity: 0.5; }
 
 .nav-icons { display: flex; gap: 24px; opacity: 0.4; }
 .nav-icons:hover { opacity: 1; }
