@@ -74,3 +74,8 @@ export const intentService = {
 export const analyzeIntent = intentService.analyzeIntent;
 export const processVoiceNote = (transcript) => intentService.generateText(transcript, "You are the Tive AI Orchestrator. Process this into the relevant background service (Mint, Google, or Memo).");
 export const sendMessage = (chat, message) => intentService.generateText(message);
+export const generateSecretNotebook = (threadsId, igId) => intentService.generateText(`Identity: @${threadsId} / @${igId}. Generate a Secret Notebook entry.`);
+export const analyzeSemanticDiff = (before, after) => intentService.analyzeScene(after, "Compare with previous state: " + before);
+export const analyzeImage = (base64, type) => intentService.analyzeScene(base64, "Analyze this image for Visual Diary entry.");
+export const analyzeVisionCommerce = (base64, type) => intentService.analyzeScene(base64, "Detect and analyze products for commerce resonance.");
+export const createKernelSession = () => null; // Kernel sessions managed server-side
