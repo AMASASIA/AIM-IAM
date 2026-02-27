@@ -12,6 +12,10 @@
     ],
     "rewrites": [
         {
+            "source": "/api/(.*)",
+            "destination": "/backend/server.js"
+        },
+        {
             "source": "/atomicMint(.*)",
             "destination": "/backend/server.js"
         },
@@ -44,7 +48,7 @@
             "destination": "/backend/server.js"
         },
         {
-            "source": "(.*)",
+            "source": "/((?!api|dist|static|assets).*)$",
             "destination": "/dist/index.html"
         }
     ],
