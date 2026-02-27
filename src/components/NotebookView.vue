@@ -10,6 +10,7 @@ import { firestore } from '../firebase';
 import { enhancedExtractInsights, mockExtractInsights, parseInsightsToNotebookEntry } from '../services/discoveryService';
 import { audioStorageService } from '../services/audioStorageService';
 import MeridiemTimeline from './MeridiemTimeline.vue';
+import { i18n, theme } from '../services/i18n';
 
 const props = defineProps({
   user: Object,
@@ -223,8 +224,8 @@ const playAudioUrl = async (url, id) => {
 </script>
 
 <template>
-  <div v-if="user" class="w-full h-full flex flex-col items-center overflow-y-auto custom-scroll bg-white/50 backdrop-blur-sm relative z-0" id="notebook-container">
-    <div class="w-full max-w-6xl px-6 md:px-12 py-6 md:py-12 space-y-12 md:space-y-20 relative z-10">
+  <div v-if="user" :class="['w-full h-full flex flex-col items-center overflow-y-auto custom-scroll relative z-0 transition-colors duration-700', theme === 'light' ? 'bg-white' : 'bg-black/90 backdrop-blur-sm']" id="notebook-container">
+    <div class="w-full max-w-6xl px-6 md:px-12 py-6 md:py-12 space-y-12 md:space-y-20 relative z-10 transition-colors duration-700" :class="{ 'text-black': theme === 'light', 'text-white': theme === 'dark' }">
       
       <!-- HEADER SECTION -->
       <header class="text-center space-y-6 md:space-y-8 mt-16 md:mt-24">
@@ -232,7 +233,7 @@ const playAudioUrl = async (url, id) => {
           
           <div class="flex gap-4 md:gap-8">
             <!-- Top Function Pair: Discovery & Timeline -->
-            <button @click="openDiscoveryPanel" title="AI Discovery" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/95 flex items-center justify-center text-purple-400 shadow-discovery hover:scale-110 transition-all cursor-pointer group active:scale-95 border border-purple-500/20">
+            <button @click="openDiscoveryPanel" :title="i18n.t('discovery')" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/95 flex items-center justify-center text-purple-400 shadow-discovery hover:scale-110 transition-all cursor-pointer group active:scale-95 border border-purple-500/20">
               <Triangle :size="32" class="rotate-180 fill-current group-hover:scale-110 transition-transform duration-500" />
             </button>
             <button @click="isMeridiemOpen = true" title="Meridiem Timeline" class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-black flex items-center justify-center text-white shadow-meridiem hover:scale-110 transition-all cursor-pointer group active:scale-95 border border-white/20">
@@ -240,11 +241,13 @@ const playAudioUrl = async (url, id) => {
             </button>
           </div>
 
-          <p class="mt-8 text-[11px] font-black uppercase tracking-[0.5em] text-slate-400 animate-in">
-            Synchronizing Cognitive Assets
+          <p class="mt-8 text-[11px] font-black uppercase tracking-[0.5em] opacity-40 animate-in">
+            {{ i18n.t('cognitive') }}
           </p>
         </div>
-        <h1 class="font-serif-luxury text-8xl md:text-[10rem] lg:text-[12rem] text-slate-900 leading-[0.8] tracking-tighter font-bold italic select-none">Personal Notebook</h1>
+        <h1 class="font-serif-luxury text-8xl md:text-[10rem] lg:text-[12rem] leading-[0.8] tracking-tighter font-bold italic select-none" :class="{ 'text-slate-900': theme === 'light', 'text-slate-100': theme === 'dark' }">
+            {{ i18n.t('notebook') }}
+        </h1>
         
         <!-- Notebook Navigation Tabs -->
         <div class="flex justify-center gap-4 mt-8">

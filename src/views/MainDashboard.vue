@@ -12,6 +12,7 @@ import { createKernelSession, sendMessage, analyzeIntent } from '../services/int
 import { useAmasSecretary } from '../composables/useAmasSecretary'; 
 import { useAmasAudio } from '../composables/useAmasAudio';
 import { useAmasAudioRecorder } from '../composables/useAmasAudioRecorder';
+import { theme } from '../services/i18n';
 
 // State
 const user = ref(null);
@@ -168,13 +169,14 @@ const handleManualDiaryEntry = (content) => {
 <template>
   <AnchorScreen v-if="!user" @anchor="handleAnchor" :isLoading="isInitializing" />
   
-  <div v-else class="h-screen w-full flex flex-col bg-white dark:bg-black transition-colors duration-1000 overflow-hidden relative font-sans">
+  <div :class="['min-h-screen w-full flex flex-col transition-colors duration-1000 overflow-hidden relative font-sans', theme === 'light' ? 'light-mode' : '']">
     <main class="flex-1 relative overflow-hidden flex flex-col min-h-0">
       
-      <!-- Unified Interface (Page 1 & 2) -->
+      <!-- Unified Interface (Page 1) -->
       <PrimaryInterface 
         v-if="activeView === 'dashboard'" 
         :isListening="isListening" 
+        :isProcessing="isProcessingVoice"
         :lastAudioUrl="lastAudioUrl"
         @toggleVoice="handleToggleVoice"
         @viewMemos="activeView = 'notebook'"
