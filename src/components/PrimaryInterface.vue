@@ -89,16 +89,14 @@ onUnmounted(() => {
 
     <!-- Header: Optimized Positioning -->
     <header class="tive-header">
-      <div class="brand">
-        <div class="dot shadow-glow"></div>
-        <span class="label">Tive◎AI</span>
-      </div>
+      <!-- Removed Logo as requested -->
+      <div class="brand-placeholder"></div>
       
       <div class="nav-icons">
-        <button class="icon-btn" @click="toggleTheme">
+        <button class="icon-btn" @click="toggleTheme" title="Toggle Theme">
             <component :is="theme === 'dark' ? Sun : Moon" :size="18" />
         </button>
-        <button class="icon-btn" @click="showSettings = !showSettings">
+        <button class="icon-btn" @click="showSettings = !showSettings" title="Settings">
             <Settings :size="18" />
         </button>
       </div>
@@ -139,7 +137,7 @@ onUnmounted(() => {
         </div>
 
         <div class="orb-wrapper" @click="handleOrbClick">
-          <AmanoOrb :isListening="isListening" :isProcessing="false" />
+          <AmanoOrb :isListening="isListening" :isProcessing="isProcessing" />
           <div v-if="isListening" class="duration-counter">{{ recordingTime }}s</div>
         </div>
 
@@ -159,24 +157,19 @@ onUnmounted(() => {
         </nav>
     </main>
 
-    <!-- Fixed Bottom Input -->
-    <footer class="tive-footer">
-        <div class="w-full max-w-lg mb-12">
-            <div class="relative bg-white/5 dark:bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-1 flex shadow-2xl">
-                 <input 
-                    v-model="textInputValue"
-                    @keydown.enter="handleTextSubmit"
-                    type="text" 
-                    :placeholder="i18n.t('ask')"
-                    class="flex-1 bg-transparent px-8 py-5 text-sm outline-none placeholder:opacity-20"
-                 />
-                 <button @click="handleTextSubmit" class="bg-indigo-500 text-white w-14 h-14 rounded-full flex items-center justify-center hover:scale-105 transition-transform">
-                    <Play :size="16" fill="white" class="translate-x-0.5" />
-                 </button>
-            </div>
-        </div>
-        <div class="meta-label">EVOLUTION LEVEL: 0</div>
-    </footer>
+                  <footer class="input-container">
+                    <div class="input-bar shadow-2xl">
+                         <input 
+                            v-model="textInputValue"
+                            @keydown.enter="handleTextSubmit"
+                            type="text" 
+                            :placeholder="i18n.t('ask')"
+                         />
+                         <button @click="handleTextSubmit" class="send-btn">
+                            <Play :size="16" fill="white" class="translate-x-0.5" />
+                         </button>
+                    </div>
+                  </footer>
 
     <div class="ambient-glow"></div>
   </div>
@@ -185,271 +178,49 @@ onUnmounted(() => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;900&display=swap');
 
+/* Unified Tive AI Styles */
 .tive-root {
   width: 100%; height: 100%;
   display: flex; flex-direction: column; align-items: center; justify-content: space-between;
   padding: 40px; background-color: #000; color: #fff;
   font-family: 'Inter', sans-serif; overflow: hidden; position: relative;
-  transition: background-color 1s ease, color 1s ease;
+  transition: all 1s ease;
 }
+.light-mode.tive-root { background-color: #fff; color: #000; }
 
-.tive-root.light-mode {
-    background-color: #fff;
-    color: #000;
-}
+.tive-header { width: 100%; display: flex; justify-content: space-between; align-items: center; z-index: 50; padding: 10px 0; }
+.brand-placeholder { width: 40px; }
 
-.settings-card {
-    position: absolute; top: 100px; right: 40px; width: 200px;
-    background: rgba(var(--bg-rgb), 0.8);
-}
-
-.light-mode .settings-card { background: rgba(255,255,255,0.9); border-color: rgba(0,0,0,0.1); }
-
-.tive-header { 
-    width: 100%; 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    z-index: 50; 
-    padding: 20px 10px; 
-}
-.brand { display: flex; align-items: center; gap: 12px; margin-left: 10px; }
-.dot { width: 6px; height: 6px; background-color: currentColor; border-radius: 50%; opacity: 0.5; }
-
-.nav-icons { display: flex; gap: 24px; opacity: 0.4; }
+.nav-icons { display: flex; gap: 24px; opacity: 0.4; transition: opacity 0.3s; }
 .nav-icons:hover { opacity: 1; }
 
-.icon-btn { background: none; border: none; color: inherit; cursor: pointer; transition: transform 0.3s ease; }
-.icon-btn:hover { transform: scale(1.1); }
+.icon-btn { background: none; border: none; color: inherit; cursor: pointer; }
 
-.tive-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; max-width: 800px; text-align: center; z-index: 50; }
-.hero-section { margin-bottom: 60px; animation: slideUp 1s ease-out; }
-.title { font-size: clamp(40px, 8vw, 80px); font-weight: 500; letter-spacing: -0.02em; margin-bottom: 20px; line-height: 1.1; }
-.subtitle { font-size: 16px; font-weight: 300; opacity: 0.4; line-height: 1.6; max-width: 500px; margin: 0 auto; }
+.tive-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 800px; text-align: center; z-index: 50; }
+.hero-section { margin-bottom: 40px; }
+.title { font-size: clamp(32px, 8vw, 72px); font-weight: 500; letter-spacing: -0.02em; margin-bottom: 16px; line-height: 1.1; }
+.subtitle { font-size: 14px; font-weight: 300; opacity: 0.4; letter-spacing: 0.05em; }
 
-.orb-wrapper { position: relative; cursor: pointer; transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.duration-counter { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 300; opacity: 0.8; pointer-events: none; }
+.orb-wrapper { position: relative; cursor: pointer; transition: transform 0.3s ease; }
+.orb-wrapper:hover { transform: scale(1.02); }
+.duration-counter { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 200; opacity: 0.6; pointer-events: none; }
 
-.bridge-nav { margin-top: 80px; display: flex; gap: 40px; }
-.bridge-link { display: flex; align-items: center; gap: 8px; background: none; border: none; color: inherit; opacity: 0.4; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; cursor: pointer; transition: all 0.3s ease; }
-.bridge-link:hover { opacity: 1; }
+.bridge-nav { margin-top: 60px; display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; }
+.bridge-link { display: flex; align-items: center; gap: 8px; background: none; border: none; color: inherit; opacity: 0.3; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.25em; cursor: pointer; transition: all 0.3s; }
+.bridge-link:hover { opacity: 1; transform: translateY(-2px); }
 
-.tive-footer { width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 50; }
-.meta-label { font-size: 10px; font-weight: 700; letter-spacing: 0.4em; opacity: 0.2; }
+.tive-footer { width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 50; margin-top: auto; }
+.input-container { width: 100%; max-width: 500px; margin-bottom: 24px; }
+.input-bar { position: relative; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 2.5rem; display: flex; align-items: center; overflow: hidden; padding: 2px; }
+.light-mode .input-bar { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+.input-bar input { flex: 1; background: transparent; border: none; outline: none; padding: 18px 24px; color: inherit; font-size: 14px; }
+.send-btn { width: 48px; height: 48px; background: #6366f1; color: white; border-radius: 50%; display: flex; items: center; justify-content: center; margin-right: 4px; transition: transform 0.2s; }
+.send-btn:hover { transform: scale(1.05); }
 
-.ambient-glow { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100vw; height: 100vh; background: radial-gradient(circle at center, rgba(128, 128, 128, 0.03) 0%, transparent 70%); pointer-events: none; }
+.settings-card { position: absolute; top: 80px; right: 40px; width: 220px; background: rgba(0,0,0,0.8); backdrop-filter: blur(40px); border: 1px solid rgba(255,255,255,0.1); }
+.light-mode .settings-card { background: rgba(255,255,255,0.9); border-color: rgba(0,0,0,0.1); }
 
-.shadow-glow { box-shadow: 0 0 20px rgba(128, 128, 128, 0.3); }
-
-@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-.pop-enter-active { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-@keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-</style>
-
-<style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;900&display=swap');
-
-.tive-root {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: 40px;
-  background-color: #000;
-  color: #fff;
-  font-family: 'Inter', sans-serif;
-  overflow: hidden;
-  position: relative;
-}
-
-.tive-header {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  z-index: 50;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  background-color: #fff;
-  border-radius: 50%;
-}
-
-.label {
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.3em;
-  opacity: 0.8;
-}
-
-.nav-icons {
-  display: flex;
-  gap: 24px;
-  opacity: 0.4;
-}
-
-.nav-icons:hover {
-  opacity: 1;
-}
-
-.icon-btn {
-  background: none;
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  transition: transform 0.3s ease;
-}
-
-.icon-btn:hover {
-  transform: scale(1.1);
-}
-
-.tive-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  max-width: 800px;
-  text-align: center;
-  z-index: 50;
-}
-
-.hero-section {
-  margin-bottom: 60px;
-  animation: slideUp 1s ease-out;
-}
-
-.title {
-  font-size: clamp(40px, 8vw, 80px);
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  margin-bottom: 20px;
-  line-height: 1.1;
-}
-
-.subtitle {
-  font-size: 16px;
-  font-weight: 300;
-  color: rgba(255, 255, 255, 0.4);
-  line-height: 1.6;
-  max-width: 500px;
-  margin: 0 auto;
-}
-
-.orb-wrapper {
-  position: relative;
-  cursor: pointer;
-  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.orb-wrapper:hover {
-  transform: scale(1.05);
-}
-
-.duration-counter {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 42px;
-  font-weight: 300;
-  color: rgba(255, 255, 255, 0.8);
-  pointer-events: none;
-  text-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
-}
-
-.play-btn {
-  position: absolute;
-  right: -20px;
-  bottom: 20px;
-  width: 56px;
-  height: 56px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 60;
-}
-
-.bridge-nav {
-  margin-top: 80px;
-  display: flex;
-  gap: 40px;
-}
-
-.bridge-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  cursor: pointer;
-  transition: color 0.3s ease;
-}
-
-.bridge-link:hover {
-  color: #fff;
-}
-
-.tive-footer {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  z-index: 50;
-}
-
-.evolution-bar {
-  width: 40px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.meta-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.4em;
-  color: rgba(255, 255, 255, 0.2);
-}
-
-.ambient-glow {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100vw;
-  height: 100vh;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.shadow-glow {
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-}
+.ambient-glow { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, rgba(128,128,128,0.02) 0%, transparent 80%); pointer-events: none; z-index: 1; }
 
 /* Animations */
 @keyframes slideUp {

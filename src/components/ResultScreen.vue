@@ -27,7 +27,7 @@ const handleCopy = () => {
             <span class="text-[10px] font-black uppercase tracking-[0.3em]">Tive◎AI</span>
         </div>
         <div class="flex items-center gap-4 text-white/20">
-            <div class="w-5 h-5 border border-white/20 rounded-md"></div>
+            <LayoutDashboard :size="20" class="cursor-pointer hover:text-white transition-colors" @click="$emit('close')" />
         </div>
     </header>
 
