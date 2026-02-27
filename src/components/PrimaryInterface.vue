@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue';
-import { Eye, Upload, Fingerprint, Navigation, Keyboard } from 'lucide-vue-next';
+import { History, Settings, Compass, Map, MessageSquare, Play } from 'lucide-vue-next';
+import AmanoOrb from './AmanoOrb.vue';
 
 const props = defineProps({
   user: Object,
@@ -8,23 +9,25 @@ const props = defineProps({
   lastAudioUrl: String
 });
 
-const emit = defineEmits(['toggleVoice', 'import', 'vision', 'textInput']);
-const fileInputRef = ref(null);
-const shimmerRef = ref(null);
-const showTextInput = ref(false);
-const textInputValue = ref('');
+const emit = defineEmits(['toggleVoice', 'viewDiscovery', 'viewAiMap', 'viewMemos', 'textInput']);
 
-// 60-second Limit UI logic
+const shimmerRef = ref(null);
 const recordingTime = ref(0);
 let timerInterval = null;
 
+// Handle Orbit Resonance (Voice Toggle)
+const handleOrbClick = () => {
+    emit('toggleVoice');
+};
+
+// 60-second Limit UI logic
 watch(() => props.isListening, (newVal) => {
     if (newVal) {
         recordingTime.value = 0;
         timerInterval = setInterval(() => {
             recordingTime.value++;
             if (recordingTime.value >= 60) {
-                emit('toggleVoice'); // Auto-stop at 1 minute
+                emit('toggleVoice'); 
             }
         }, 1000);
     } else {
@@ -35,37 +38,13 @@ watch(() => props.isListening, (newVal) => {
 const playRaw = () => {
     if (props.lastAudioUrl) {
         const audio = new Audio(props.lastAudioUrl);
-        audio.play().catch(e => console.warn("Audio play failed:", e));
+        audio.play().catch(e => console.warn("Audio Resonance failed:", e));
     }
-};
-
-const handleImportClick = () => {
-  fileInputRef.value?.click();
-};
-
-const handleTextSubmit = () => {
-    if (!textInputValue.value.trim()) return;
-    emit('textInput', textInputValue.value);
-    textInputValue.value = '';
-    showTextInput.value = false;
-};
-
-const handleFileChange = (e) => {
-  const file = e.target.files?.[0];
-  if (file) {
-    emit('import', file);
-    e.target.value = '';
-  }
-};
-
-const handleTraceClick = () => {
-  window.open('https://aim3-ai-map-bright-luxury-608065432512.us-west1.run.app/', '_blank');
 };
 
 const handleMouseMove = (e) => {
   if (!shimmerRef.value) return;
   const rect = shimmerRef.value.getBoundingClientRect();
-  // Reverse the ratio so light follows correctly
   const x = (1 - (e.clientX - rect.left) / rect.width) * 100;
   shimmerRef.value.style.setProperty('--shimmer-x', `${x}%`);
 };
@@ -76,199 +55,306 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('mousemove', handleMouseMove);
+  if (timerInterval) clearInterval(timerInterval);
 });
 </script>
 
 <template>
-  <div class="w-full h-full flex flex-col items-center justify-center p-10 relative overflow-hidden bg-[#E5E5E5]">
-    <input type="file" ref="fileInputRef" class="hidden" accept="image/*" @change="handleFileChange" />
+  <div class="tive-root">
     
-    <!-- Top Horizontal Header -->
-    <div class="absolute top-32 md:top-40 text-center pointer-events-none select-none">
-      <p class="text-[11px] font-black uppercase tracking-[0.8em] text-black/20 mb-8 md:mb-12">SECTOR IDENTIFIER</p>
-      <h1 class="text-7xl md:text-9xl font-bold tracking-tighter uppercase mb-4 text-[#1A1A1A]">Primal Interface</h1>
-    </div>
+    <!-- Header: Minimal Branding -->
+    <header class="tive-header">
+      <div class="brand">
+        <div class="dot shadow-glow"></div>
+        <span class="label">Tive AI</span>
+      </div>
+      
+      <div class="nav-icons">
+        <button class="icon-btn"><History :size="18" /></button>
+        <button class="icon-btn"><Settings :size="18" /></button>
+      </div>
+    </header>
 
-    <!-- Center Voice Input -->
-    <div class="relative z-50 flex flex-col items-center mt-20">
-        <div class="relative mb-12">
-          <div v-if="isListening" class="absolute inset-0 rounded-full border border-black/10 animate-ring-expand" />
-          <div v-if="isListening" class="absolute inset-0 rounded-full border border-black/5 animate-ring-expand" style="animation-delay: 0.5s" />
+    <!-- Main Content: The Core Essence -->
+    <main class="tive-main">
+        
+        <div class="hero-section">
+           <h1 class="title">Ask Me Anythings</h1>
+           <p class="subtitle">
+               Tap the Tive to start a communicate. I can discovery the web, find places, or save your Memo and Notebook.
+           </p>
+        </div>
+
+        <!-- The Central Orb -->
+        <div class="orb-wrapper" @click="handleOrbClick">
+          <AmanoOrb :isListening="isListening" :isProcessing="false" />
           
-          <button 
-            @click="$emit('toggleVoice')" 
-            :class="[
-              'relative w-40 h-40 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center transition-all duration-700 shadow-2xl',
-              isListening ? 'scale-110 shadow-[0_0_100px_rgba(0,0,0,0.3)]' : 'aura-breathe hover:scale-105 active:scale-95'
-            ]"
-          >
-            <div v-if="!isListening" class="flex items-end gap-1.5 h-12">
-               <div v-for="(h, i) in [1, 2, 3, 2, 1]" :key="i" :class="['w-1.5 bg-white rounded-full transition-all duration-300']" :style="{ height: `${h * 10}px` }" />
+          <!-- Recording Duration Overlay -->
+          <Transition name="fade">
+            <div v-if="isListening" class="duration-counter">
+              {{ recordingTime }}s
             </div>
-            <div v-else class="flex flex-col items-center gap-2">
-                <!-- Recording Counter: 1 Minute limit -->
-                <span class="text-2xl font-mono-light tracking-widest">{{ recordingTime }}s</span>
-                <div class="flex items-end gap-1.5 h-6">
-                    <div v-for="(h, i) in [2, 4, 3, 5, 2]" :key="i" :class="['w-1 bg-white/60 rounded-full animate-voice-bar']" :style="{ height: `${h * 4}px`, animationDelay: `${i * 100}ms` }" />
-                </div>
-            </div>
-          </button>
+          </Transition>
 
-          <!-- Tiny Play Raw Button (appears after recording) -->
-          <Transition enter-active-class="transition duration-500 ease-out" enter-from-class="opacity-0 scale-50" enter-to-class="opacity-100 scale-100">
+          <!-- Playback Resonance (Hidden until recorded) -->
+          <Transition name="pop">
               <button 
                 v-if="lastAudioUrl && !isListening"
-                @click="playRaw"
-                class="absolute -right-4 bottom-4 w-12 h-12 rounded-full bg-white/80 backdrop-blur-md border border-black/5 shadow-lg flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-[60]"
+                @click.stop="playRaw"
+                class="play-btn shadow-glow"
               >
-                <div class="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-black border-b-[6px] border-b-transparent ml-1" />
+                <Play :size="16" fill="white" />
               </button>
           </Transition>
         </div>
 
-        <div class="text-center space-y-4">
-           <p class="text-[10px] font-black uppercase tracking-[0.4em] text-black/20">
-             {{ isListening ? 'Capturing Frequency' : 'Voice Input' }}
-           </p>
-           <h3 
-             ref="shimmerRef"
-             class="font-serif-luxury text-[26px] md:text-[32px] italic leading-tight tracking-tight px-6 interactive-shimmer"
-           >
-             "{{ isListening ? 'Listening to your intent...' : 'Instantly moves to your Notebook' }}"
-           </h3>
-        </div>
-    </div>
+        <!-- AI Bridge Navigation (Background Services) -->
+        <nav class="bridge-nav">
+            <button @click="$emit('viewDiscovery')" class="bridge-link">
+                <Compass :size="14" />
+                <span>Discovery</span>
+            </button>
+            <button @click="$emit('viewAiMap')" class="bridge-link">
+                <Map :size="14" />
+                <span>AI Map</span>
+            </button>
+            <button @click="$emit('viewMemos')" class="bridge-link">
+                <MessageSquare :size="14" />
+                <span>Memos</span>
+            </button>
+        </nav>
+    </main>
 
-    <!-- Bottom Floating Action Bar -->
-    <div class="absolute bottom-16 md:bottom-20 flex items-center gap-8 p-5 bg-white/40 backdrop-blur-3xl rounded-[3rem] border border-white/60 shadow-2xl shadow-black/5 hover:scale-105 transition-transform duration-700">
-       
-       <!-- Vision -->
-       <button @click="$emit('vision')" class="w-16 h-16 flex flex-col items-center justify-center gap-1 bg-[#1A1A1A] text-white rounded-[2rem] hover:scale-110 transition-transform shadow-lg group relative overflow-hidden">
-           <Eye :size="20" />
-           <span class="text-[7px] font-bold uppercase tracking-widest mt-1 opacity-80">Vision</span>
-       </button>
+    <!-- Footer: Evolution Meta -->
+    <footer class="tive-footer">
+        <div class="evolution-bar"></div>
+        <div class="meta-label">EVOLUTION LEVEL: 0</div>
+    </footer>
 
-       <div class="w-px h-8 bg-black/10 mx-1"></div>
-
-       <!-- Import -->
-       <button @click="handleImportClick" class="w-14 h-14 flex flex-col items-center justify-center gap-1 bg-white/60 border border-black/5 text-black rounded-[1.5rem] hover:bg-black/5 transition-all group">
-           <Upload :size="18" class="opacity-40 group-hover:opacity-100 transition-opacity" />
-           <span class="text-[7px] font-bold uppercase tracking-widest mt-1 opacity-40 group-hover:opacity-100">Import</span>
-       </button>
-
-       <!-- Auth -->
-       <button class="w-14 h-14 flex flex-col items-center justify-center gap-1 bg-white/60 border border-black/5 text-black rounded-[1.5rem] hover:bg-black/5 transition-all group opacity-30 cursor-not-allowed">
-           <Fingerprint :size="18" class="opacity-40" />
-           <span class="text-[7px] font-bold uppercase tracking-widest mt-1 opacity-40">Auth</span>
-       </button>
-
-       <!-- Trace -->
-       <button @click="handleTraceClick" class="w-14 h-14 flex flex-col items-center justify-center gap-1 bg-white/60 border border-black/5 text-black rounded-[1.5rem] hover:bg-black/5 transition-all group">
-           <Navigation :size="18" class="opacity-40 group-hover:opacity-100 transition-opacity" />
-           <span class="text-[7px] font-bold uppercase tracking-widest mt-1 opacity-40 group-hover:opacity-100">Trace</span>
-       </button>
-
-       <!-- Keyboard Input -->
-       <button @click="showTextInput = !showTextInput" class="w-14 h-14 flex flex-col items-center justify-center gap-1 bg-white/60 border border-black/5 text-black rounded-[1.5rem] hover:bg-black/5 transition-all group">
-           <Keyboard :size="18" class="opacity-40 group-hover:opacity-100 transition-opacity" />
-           <span class="text-[7px] font-bold uppercase tracking-widest mt-1 opacity-40 group-hover:opacity-100">Key</span>
-       </button>
-
-
-
-    </div>
-
-    <!-- Text Input Overlay -->
-    <Transition enter-active-class="transform transition duration-300 ease-out" enter-from-class="translate-y-10 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transform transition duration-200 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-10 opacity-0">
-        <div v-if="showTextInput" class="absolute bottom-40 w-full max-w-md px-6 z-50">
-            <div class="bg-white/90 backdrop-blur-xl p-2 rounded-[2rem] shadow-2xl border border-white/50 flex gap-2">
-                <input 
-                    v-model="textInputValue"
-                    @keydown.enter="handleTextSubmit"
-                    type="text" 
-                    placeholder="Type command (e.g. '@Cal Meeting tomorrow')" 
-                    class="flex-1 bg-transparent border-none focus:ring-0 text-slate-800 placeholder:text-slate-400 font-medium px-4"
-                    autofocus
-                />
-                <button @click="handleTextSubmit" class="p-3 bg-black text-white rounded-full hover:scale-105 transition-transform">
-                    <Navigation :size="16" class="rotate-90" />
-                </button>
-            </div>
-        </div>
-    </Transition>
-
-    <!-- Metadata Footers -->
-    <div class="absolute bottom-10 left-10 text-[10px] font-mono-light font-bold text-black/20 uppercase tracking-[0.3em] space-y-2 hidden md:block">
-        <p>Active Mode: Amas_Genesis_v4</p>
-        <p>SSM: Resonance : 0.998</p>
-        <p>Protocol: Amane_XL</p>
-    </div>
-
-    <div class="absolute bottom-10 right-10 text-right space-y-1 hidden md:block">
-         <p class="text-[10px] font-black uppercase tracking-[0.4em] text-black/30">Sync Status</p>
-         <p class="text-[14px] font-black uppercase tracking-[0.1em] text-black/80">Verified</p>
-    </div>
+    <!-- Atmosphere Glow -->
+    <div class="ambient-glow"></div>
 
   </div>
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,300;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;900&display=swap');
 
-.font-serif-luxury {
-  font-family: "Cormorant Garamond", serif;
-  font-weight: 700;
-}
-
-.interactive-shimmer {
-  --shimmer-x: 50%;
-  position: relative;
-  color: rgba(26, 26, 26, 0.7);
-}
-
-.interactive-shimmer::before {
-  content: '"Instantly moves to your Notebook"';
-  position: absolute;
-  top: 0;
-  left: 0;
+.tive-root {
   width: 100%;
   height: 100%;
-  background: radial-gradient(
-    circle at var(--shimmer-x) 50%,
-    rgba(255, 255, 255, 0.9) 0%,
-    rgba(26, 26, 26, 0) 40%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40px;
+  background-color: #000;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+.tive-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 50;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+  border-radius: 50%;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  opacity: 0.8;
+}
+
+.nav-icons {
+  display: flex;
+  gap: 24px;
+  opacity: 0.4;
+}
+
+.nav-icons:hover {
+  opacity: 1;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.icon-btn:hover {
+  transform: scale(1.1);
+}
+
+.tive-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 800px;
+  text-align: center;
+  z-index: 50;
+}
+
+.hero-section {
+  margin-bottom: 60px;
+  animation: slideUp 1s ease-out;
+}
+
+.title {
+  font-size: clamp(40px, 8vw, 80px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin-bottom: 20px;
+  line-height: 1.1;
+}
+
+.subtitle {
+  font-size: 16px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.6;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.orb-wrapper {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.orb-wrapper:hover {
+  transform: scale(1.05);
+}
+
+.duration-counter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.8);
   pointer-events: none;
-  z-index: 1;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
 }
 
-.aura-breathe {
-  animation: aura-pulse 4s ease-in-out infinite;
+.play-btn {
+  position: absolute;
+  right: -20px;
+  bottom: 20px;
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 60;
 }
 
-@keyframes aura-pulse {
-  0%, 100% { opacity: 0.8; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.02); }
+.bridge-nav {
+  margin-top: 80px;
+  display: flex;
+  gap: 40px;
 }
 
-@keyframes ring-expand {
-  0% { transform: scale(1); opacity: 0.5; }
-  100% { transform: scale(1.5); opacity: 0; }
+.bridge-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: color 0.3s ease;
 }
 
-@keyframes voice-bar {
-  0%, 100% { transform: scaleY(1); }
-  50% { transform: scaleY(2.5); }
+.bridge-link:hover {
+  color: #fff;
 }
 
-.animate-voice-bar {
-  animation: voice-bar 0.5s infinite;
+.tive-footer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 50;
 }
 
-.animate-ring-expand {
-  animation: ring-expand 2s infinite;
+.evolution-bar {
+  width: 40px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.meta-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.ambient-glow {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.shadow-glow {
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Animations */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.pop-enter-active { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.pop-leave-active { animation: popIn 0.3s reverse ease-in; }
+
+@keyframes popIn {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 </style>

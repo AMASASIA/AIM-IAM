@@ -1179,16 +1179,16 @@ const navigateTo = (view) => {
 
     <!-- Main Content -->
     <main class="flex-1 relative overflow-hidden flex flex-col min-h-0">
+      <!-- Unified Tive Bridge Interface (Background Orchestration Mode) -->
       <PrimaryInterface 
         v-if="activeView === 'dashboard'" 
-        :user="user" 
         :isListening="isListening" 
         :lastAudioUrl="lastAudioUrl"
         @toggleVoice="handleToggleVoice"
-        @import="handleImport"
-        @vision="handleVideoChatClick"
-        @textInput="(val) => handleVoiceTranscription(val, true)"
-        @forceNotebook="forceNotebook"
+        @viewDiscovery="activeView = 'discovery'"
+        @viewAiMap="activeView = 'aimap'"
+        @viewMemos="activeView = 'notebook'"
+        @textInput="handleSendMessage"
       />
       <ChatMessaging 
         v-if="activeView === 'chat'" 

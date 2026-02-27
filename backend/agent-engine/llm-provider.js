@@ -1,57 +1,81 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const googleService = require('../services/googleService');
 
 /**
- * Gemini-First LLM Provider
- * Optimized for Gemini 1.5 Flash for speed and multi-modal support.
+ * Abnormal AI LLM Provider (Google Integrated)
+ * Optimized for Gemini 1.5 Pro/Flash with Tool Use.
  */
-
 class LLMProvider {
     constructor() {
         this.apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "AIzaSyCiLO-pbMChwMe3vIYyA7ZYrFPolOHNWWw";
-        this.modelName = "gemini-1.5-flash";
+        this.modelName = "gemini-1.5-flash"; // Use Flash for speed, Pro for reasoning
 
         if (this.apiKey && !this.apiKey.includes('placeholder')) {
             this.genAI = new GoogleGenerativeAI(this.apiKey);
-            this.model = this.genAI.getGenerativeModel({ model: this.modelName });
         } else {
             console.warn("[LLM] No valid Gemini API Key found. Using Mock Mode.");
         }
     }
 
     async generate(prompt, systemContext = "") {
-        console.log(`[Gemini] Generating response for: ${prompt.substring(0, 50)}...`);
+        console.log(`[Gemini] Processing Intent: ${prompt.substring(0, 50)}...`);
 
-        // --- MOCK FALLBACK ---
-        if (!this.model) {
-            return this.mockResponse(prompt, systemContext);
-        }
+        if (!this.genAI) return this.mockResponse(prompt, systemContext);
 
-        // --- REAL GEMINI CALL ---
         try {
-            // Using systemInstruction for Gemini 1.5 if preferred, 
-            // but for simple generateContent we can combine.
-            const modelToUse = systemContext
-                ? this.genAI.getGenerativeModel({ model: this.modelName, systemInstruction: systemContext })
-                : this.model;
+            // Enhanced System Instruction to match "Abnormality AI" persona
+            const defaultSystem = "You are the Amano Abnormality AI, a premium, Siri-like entity. " +
+                                  "You control the Google ecosystem (Calendar, Gmail, Search) for the user. " +
+                                  "Respond with elegance, precision, and a touch of mystery. " + 
+                                  "Stay integrated with the AIM3-Vue-ADM backoffice. " +
+                                  "When using tools, follow up with a refined summary.";
 
-            const result = await modelToUse.generateContent(prompt);
+            const model = this.genAI.getGenerativeModel({ 
+                model: this.modelName,
+                systemInstruction: systemContext || defaultSystem,
+                tools: googleService.getTools()
+            });
+
+            // Start a chat session to handle tool calls naturally
+            const chat = model.startChat();
+            const result = await chat.sendMessage(prompt);
             const response = await result.response;
-            const text = response.text();
+            
+            // Handle Function Calls (Google Integration)
+            const calls = response.functionCalls();
+            if (calls && calls.length > 0) {
+                const call = calls[0];
+                console.log(`[Gemini] Tool Call Detected: ${call.name}`);
+                
+                // Execute the actual Google Service logic
+                const toolResult = await googleService.executeToolCall(call.name, call.args);
+                
+                // Send back the results to Gemini for synthesis
+                const synthesisResult = await chat.sendMessage([{
+                    functionResponse: {
+                        name: call.name,
+                        response: { content: toolResult }
+                    }
+                }]);
+                
+                return synthesisResult.response.text();
+            }
 
-            return text;
+            return response.text();
         } catch (e) {
-            console.warn("[Gemini] API Call failed, falling back to mock.", e.message);
+            console.warn("[Gemini] Execution Error:", e.message);
             return this.mockResponse(prompt, systemContext);
         }
     }
 
     async analyzeImage(base64Image, prompt) {
-        if (!this.model) return this.mockResponse("IMAGE_ANALYSIS", "");
-
+        if (!this.genAI) return this.mockResponse("IMAGE_ANALYSIS", "");
+        
         try {
-            const result = await this.model.generateContent([
+            const model = this.genAI.getGenerativeModel({ model: this.modelName });
+            const result = await model.generateContent([
                 prompt,
                 {
                     inlineData: {
@@ -69,10 +93,10 @@ class LLMProvider {
 
     mockResponse(prompt, context) {
         if (context.includes('ROUTER')) {
-            if (prompt.toLowerCase().includes('complex') || prompt.toLowerCase().includes('research') || prompt.toLowerCase().includes('plan')) return 'COMPLEX';
+            if (prompt.toLowerCase().includes('complex') || prompt.toLowerCase().includes('research')) return 'COMPLEX';
             return 'STANDARD';
         }
-        return `[Gemini Mock]: I understand "${prompt}". (Ensure GEMINI_API_KEY is valid for real AI responses)`;
+        return `[Amano Mock Resonance]: I understand "${prompt}". Integration with Google is active, but requires a valid API key for full resonance.`;
     }
 }
 
