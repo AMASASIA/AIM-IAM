@@ -108,6 +108,10 @@ onMounted(() => {
   transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.light-mode .orb-container {
+  filter: saturate(1.2) contrast(1.1);
+}
+
 .outer-ring {
   position: absolute;
   width: 380px;
@@ -119,6 +123,11 @@ onMounted(() => {
   opacity: 0.6;
   filter: blur(1px);
   animation: ring-pulse 6s infinite ease-in-out;
+}
+
+.light-mode .outer-ring {
+  border-color: rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.1);
 }
 
 .orb-core {
@@ -136,6 +145,12 @@ onMounted(() => {
   justify-content: center;
 }
 
+.light-mode .orb-core {
+  background: radial-gradient(circle at 50% 50%, #ffffff 0%, #e0e0e0 100%);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 80px rgba(0, 0, 0, 0.1), inset 0 0 20px rgba(0, 0, 0, 0.05);
+}
+
 .tive-dot {
   position: absolute;
   width: 12px;
@@ -145,6 +160,11 @@ onMounted(() => {
   z-index: 10;
   box-shadow: 0 0 15px white, 0 0 30px white;
   animation: dot-breathe 4s infinite ease-in-out;
+}
+
+.light-mode .tive-dot {
+  background: black;
+  box-shadow: 0 0 15px rgba(0,0,0,0.2);
 }
 
 @keyframes dot-breathe {

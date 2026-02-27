@@ -1,7 +1,9 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue';
-import { History, Settings, Compass, Map, MessageSquare, Play } from 'lucide-vue-next';
+import { History, Settings, Compass, Map, MessageSquare, Play, Sun, Moon, Globe } from 'lucide-vue-next';
 import AmanoOrb from './AmanoOrb.vue';
+import ResultScreen from './ResultScreen.vue';
+import { i18n, theme, toggleTheme } from '../services/i18n';
 
 const props = defineProps({
   user: Object,
@@ -11,131 +13,222 @@ const props = defineProps({
 
 const emit = defineEmits(['toggleVoice', 'viewDiscovery', 'viewAiMap', 'viewMemos', 'textInput']);
 
-const shimmerRef = ref(null);
+const textInputValue = ref('');
+const isResultOpen = ref(false);
+const showSettings = ref(false);
 const recordingTime = ref(0);
 let timerInterval = null;
 
-// Handle Orbit Resonance (Voice Toggle)
 const handleOrbClick = () => {
     emit('toggleVoice');
 };
 
-// 60-second Limit UI logic
+const handleTextSubmit = () => {
+    if (!textInputValue.value) return;
+    
+    // Command Logic
+    if (textInputValue.value.toLowerCase().includes('@amas')) {
+        isResultOpen.value = true;
+    } else {
+        emit('textInput', textInputValue.value);
+    }
+    textInputValue.value = '';
+};
+
+// Key Shortcut (Ctrl+A)
+const handleGlobalKey = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        isResultOpen.value = true;
+    }
+};
+
 watch(() => props.isListening, (newVal) => {
     if (newVal) {
         recordingTime.value = 0;
         timerInterval = setInterval(() => {
             recordingTime.value++;
-            if (recordingTime.value >= 60) {
-                emit('toggleVoice'); 
-            }
+            if (recordingTime.value >= 60) emit('toggleVoice'); 
         }, 1000);
     } else {
         clearInterval(timerInterval);
+        // "Fluffy" Transition Delay
+        if (recordingTime.value > 0) {
+            setTimeout(() => { isResultOpen.value = true; }, 1500);
+        }
     }
 });
 
-const playRaw = () => {
-    if (props.lastAudioUrl) {
-        const audio = new Audio(props.lastAudioUrl);
-        audio.play().catch(e => console.warn("Audio Resonance failed:", e));
-    }
-};
-
-const handleMouseMove = (e) => {
-  if (!shimmerRef.value) return;
-  const rect = shimmerRef.value.getBoundingClientRect();
-  const x = (1 - (e.clientX - rect.left) / rect.width) * 100;
-  shimmerRef.value.style.setProperty('--shimmer-x', `${x}%`);
+const handleOKE = () => {
+    isResultOpen.value = false;
+    emit('viewMemos'); // Transition to 3rd Page (Notebook)
 };
 
 onMounted(() => {
-  window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('keydown', handleGlobalKey);
 });
-
 onUnmounted(() => {
-  window.removeEventListener('mousemove', handleMouseMove);
-  if (timerInterval) clearInterval(timerInterval);
+    window.removeEventListener('keydown', handleGlobalKey);
 });
 </script>
 
 <template>
-  <div class="tive-root">
+  <div class="tive-root" :class="{ 'light-mode': theme === 'light' }">
     
-    <!-- Header: Minimal Branding -->
+    <!-- Result Screen Overlay (Slide In) -->
+    <Transition 
+        enter-active-class="transform transition duration-1000 ease-out" 
+        enter-from-class="translate-y-full opacity-0 scale-95" 
+        enter-to-class="translate-y-0 opacity-100 scale-100"
+        leave-active-class="transform transition duration-700 ease-in"
+        leave-from-class="translate-y-0 opacity-100 scale-100"
+        leave-to-class="translate-y-full opacity-0 scale-95"
+    >
+        <ResultScreen v-if="isResultOpen" @close="isResultOpen = false" @oke="handleOKE" />
+    </Transition>
+
+    <!-- Header: Optimized Positioning -->
     <header class="tive-header">
       <div class="brand">
         <div class="dot shadow-glow"></div>
-        <span class="label">Tive AI</span>
+        <span class="label">Tive◎AI</span>
       </div>
       
       <div class="nav-icons">
-        <button class="icon-btn"><History :size="18" /></button>
-        <button class="icon-btn"><Settings :size="18" /></button>
+        <button class="icon-btn" @click="toggleTheme">
+            <component :is="theme === 'dark' ? Sun : Moon" :size="18" />
+        </button>
+        <button class="icon-btn" @click="showSettings = !showSettings">
+            <Settings :size="18" />
+        </button>
       </div>
     </header>
 
-    <!-- Main Content: The Core Essence -->
+    <!-- Floating Settings Menu -->
+    <Transition name="pop">
+        <div v-if="showSettings" class="settings-card backdrop-blur-3xl shadow-2xl border border-white/10 p-6 rounded-3xl z-[120]">
+            <div class="space-y-6">
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest opacity-40 mb-3">{{ i18n.t('language') }}</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button v-for="l in ['en', 'ja', 'es', 'fr', 'de']" :key="l" @click="i18n.setLocale(l)" :class="['px-3 py-1.5 rounded-lg text-[9px] uppercase font-bold', i18n.locale === l ? 'bg-indigo-500 text-white' : 'bg-white/5']">
+                            {{ l }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button @click="showSettings = false" class="absolute top-4 right-4 opacity-40"><X :size="16" /></button>
+        </div>
+    </Transition>
+
+    <!-- Main Content -->
     <main class="tive-main">
-        
         <div class="hero-section">
            <h1 class="title">Ask Me Anythings</h1>
-           <p class="subtitle">
-               Tap the Tive to start a communicate. I can discovery the web, find places, or save your Memo and Notebook.
-           </p>
+           <p class="subtitle">{{ i18n.t('ask') }}</p>
         </div>
 
-        <!-- The Central Orb -->
         <div class="orb-wrapper" @click="handleOrbClick">
           <AmanoOrb :isListening="isListening" :isProcessing="false" />
-          
-          <!-- Recording Duration Overlay -->
-          <Transition name="fade">
-            <div v-if="isListening" class="duration-counter">
-              {{ recordingTime }}s
-            </div>
-          </Transition>
-
-          <!-- Playback Resonance (Hidden until recorded) -->
-          <Transition name="pop">
-              <button 
-                v-if="lastAudioUrl && !isListening"
-                @click.stop="playRaw"
-                class="play-btn shadow-glow"
-              >
-                <Play :size="16" fill="white" />
-              </button>
-          </Transition>
+          <div v-if="isListening" class="duration-counter">{{ recordingTime }}s</div>
         </div>
 
-        <!-- AI Bridge Navigation (Background Services) -->
         <nav class="bridge-nav">
             <button @click="$emit('viewDiscovery')" class="bridge-link">
                 <Compass :size="14" />
-                <span>Discovery</span>
+                <span>{{ i18n.t('discovery') }}</span>
             </button>
             <button @click="$emit('viewAiMap')" class="bridge-link">
                 <Map :size="14" />
-                <span>AI Map</span>
+                <span>{{ i18n.t('map') }}</span>
             </button>
             <button @click="$emit('viewMemos')" class="bridge-link">
-                <MessageSquare :size="14" />
-                <span>Memos</span>
+                <Book :size="14" />
+                <span>{{ i18n.t('notebook') }}</span>
             </button>
         </nav>
     </main>
 
-    <!-- Footer: Evolution Meta -->
+    <!-- Fixed Bottom Input -->
     <footer class="tive-footer">
-        <div class="evolution-bar"></div>
+        <div class="w-full max-w-lg mb-12">
+            <div class="relative bg-white/5 dark:bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-1 flex shadow-2xl">
+                 <input 
+                    v-model="textInputValue"
+                    @keydown.enter="handleTextSubmit"
+                    type="text" 
+                    :placeholder="i18n.t('ask')"
+                    class="flex-1 bg-transparent px-8 py-5 text-sm outline-none placeholder:opacity-20"
+                 />
+                 <button @click="handleTextSubmit" class="bg-indigo-500 text-white w-14 h-14 rounded-full flex items-center justify-center hover:scale-105 transition-transform">
+                    <Play :size="16" fill="white" class="translate-x-0.5" />
+                 </button>
+            </div>
+        </div>
         <div class="meta-label">EVOLUTION LEVEL: 0</div>
     </footer>
 
-    <!-- Atmosphere Glow -->
     <div class="ambient-glow"></div>
-
   </div>
 </template>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;900&display=swap');
+
+.tive-root {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: 40px; background-color: #000; color: #fff;
+  font-family: 'Inter', sans-serif; overflow: hidden; position: relative;
+  transition: background-color 1s ease, color 1s ease;
+}
+
+.tive-root.light-mode {
+    background-color: #fff;
+    color: #000;
+}
+
+.settings-card {
+    position: absolute; top: 100px; right: 40px; width: 200px;
+    background: rgba(var(--bg-rgb), 0.8);
+}
+
+.light-mode .settings-card { background: rgba(255,255,255,0.9); border-color: rgba(0,0,0,0.1); }
+
+.tive-header { width: 100%; display: flex; justify-content: space-between; align-items: center; z-index: 50; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.dot { width: 8px; height: 8px; background-color: currentColor; border-radius: 50%; }
+
+.nav-icons { display: flex; gap: 24px; opacity: 0.4; }
+.nav-icons:hover { opacity: 1; }
+
+.icon-btn { background: none; border: none; color: inherit; cursor: pointer; transition: transform 0.3s ease; }
+.icon-btn:hover { transform: scale(1.1); }
+
+.tive-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; max-width: 800px; text-align: center; z-index: 50; }
+.hero-section { margin-bottom: 60px; animation: slideUp 1s ease-out; }
+.title { font-size: clamp(40px, 8vw, 80px); font-weight: 500; letter-spacing: -0.02em; margin-bottom: 20px; line-height: 1.1; }
+.subtitle { font-size: 16px; font-weight: 300; opacity: 0.4; line-height: 1.6; max-width: 500px; margin: 0 auto; }
+
+.orb-wrapper { position: relative; cursor: pointer; transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.duration-counter { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 300; opacity: 0.8; pointer-events: none; }
+
+.bridge-nav { margin-top: 80px; display: flex; gap: 40px; }
+.bridge-link { display: flex; align-items: center; gap: 8px; background: none; border: none; color: inherit; opacity: 0.4; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; cursor: pointer; transition: all 0.3s ease; }
+.bridge-link:hover { opacity: 1; }
+
+.tive-footer { width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 50; }
+.meta-label { font-size: 10px; font-weight: 700; letter-spacing: 0.4em; opacity: 0.2; }
+
+.ambient-glow { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100vw; height: 100vh; background: radial-gradient(circle at center, rgba(128, 128, 128, 0.03) 0%, transparent 70%); pointer-events: none; }
+
+.shadow-glow { box-shadow: 0 0 20px rgba(128, 128, 128, 0.3); }
+
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+.pop-enter-active { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+</style>
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;900&display=swap');
