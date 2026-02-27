@@ -5,8 +5,10 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   server: {
+    port: 3333,
+    strictPort: true,
     host: '0.0.0.0', // Listen on all network interfaces
-    allowedHosts: true, // Allow connections from any host (required for local network access)
+    allowedHosts: true, // Allow connections from any host
     proxy: {
       '/agent': 'http://localhost:3000',
       '/analyze-scene': 'http://localhost:3000',

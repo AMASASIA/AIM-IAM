@@ -1,13 +1,13 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue';
-import { Settings, Play, Sun, Moon, Compass, Map, Book } from 'lucide-vue-next';
-import AmanoOrb from './AmanoOrb.vue';
+import { Settings, Play, Sun, Moon, Compass, Map, Book, X } from 'lucide-vue-next';
+import Orb from './Orb.vue';
 import { i18n, theme, toggleTheme } from '../services/i18n';
 
 const props = defineProps({
   user: Object,
   isListening: Boolean,
-  isProcessing: Boolean, // Added this prop
+  isProcessing: Boolean,
   lastAudioUrl: String
 });
 
@@ -45,7 +45,10 @@ watch(() => props.isListening, (newVal) => {
   <div class="tive-root" :class="{ 'light-mode': theme === 'light' }">
     
     <header class="tive-header">
-      <div class="brand-placeholder"></div>
+      <div class="tive-branding">
+        <div class="tive-dot-logo" :class="{ 'is-active': isListening || isProcessing }"></div>
+        <span class="tive-brand-text">Tive AI</span>
+      </div>
       
       <div class="nav-icons">
         <button class="icon-btn" @click="toggleTheme" :title="i18n.t('appearance')">
@@ -84,12 +87,12 @@ watch(() => props.isListening, (newVal) => {
 
     <main class="tive-main">
         <div class="hero-section">
-           <h1 class="title">Ask Me Anythings</h1>
+           <h1 class="title">{{ i18n.t('title') }}</h1>
            <p class="subtitle">{{ i18n.t('ask') }}</p>
         </div>
 
         <div class="orb-wrapper" @click="handleOrbClick">
-          <AmanoOrb :isListening="isListening" :isProcessing="isProcessing" />
+          <Orb :isListening="isListening" :isProcessing="isProcessing" />
           <div v-if="isListening" class="duration-counter">{{ recordingTime }}s</div>
         </div>
 
@@ -138,7 +141,12 @@ watch(() => props.isListening, (newVal) => {
 .tive-root.light-mode { background-color: #fff; color: #000; }
 
 .tive-header { width: 100%; display: flex; justify-content: space-between; align-items: center; z-index: 50; }
-.brand-placeholder { width: 40px; }
+
+.tive-branding { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.tive-dot-logo { width: 8px; height: 8px; background: #fff; border-radius: 50%; box-shadow: 0 0 15px #fff; animation: tive-pulse 4s infinite ease-in-out; }
+.light-mode .tive-dot-logo { background: #000; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+.tive-dot-logo.is-active { animation: tive-pulse-active 1.5s infinite ease-in-out; background: #6366f1; box-shadow: 0 0 20px #6366f1; }
+.tive-brand-text { font-size: 14px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.8; }
 
 .nav-icons { display: flex; gap: 24px; opacity: 0.5; }
 .nav-icons:hover { opacity: 1; }
@@ -169,6 +177,15 @@ watch(() => props.isListening, (newVal) => {
 .light-mode .settings-card { background: rgba(255,255,255,0.95); border-color: rgba(0,0,0,0.1); }
 
 .ambient-glow { position: fixed; inset: 0; background: radial-gradient(circle at center, rgba(128,128,128,0.02) 0%, transparent 80%); pointer-events: none; }
+
+@keyframes tive-pulse { 
+    0%, 100% { transform: scale(1); opacity: 0.8; } 
+    50% { transform: scale(1.5); opacity: 1; } 
+}
+@keyframes tive-pulse-active {
+    0%, 100% { transform: scale(1.2); opacity: 1; filter: brightness(1.2); }
+    50% { transform: scale(2.2); opacity: 0.8; filter: brightness(1.5); }
+}
 
 .pop-enter-active { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 .pop-leave-active { animation: popIn 0.3s reverse ease-in; }
