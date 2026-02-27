@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
+import { Mail } from 'lucide-vue-next';
 
 const props = defineProps({
   isLoading: Boolean
@@ -7,98 +8,71 @@ const props = defineProps({
 
 const emit = defineEmits(['anchor']);
 
-const threadsId = ref('');
-const igId = ref('');
-
-// Load saved handles on mount
-onMounted(() => {
-    const savedThreads = localStorage.getItem('amas_anchor_threads');
-    const savedIg = localStorage.getItem('amas_anchor_ig');
-    
-    // Also check URL params for magic links
-    const urlParams = new URLSearchParams(window.location.search);
-    const paramT = urlParams.get('t');
-    const paramI = urlParams.get('i');
-
-    if (paramT) threadsId.value = paramT;
-    else if (savedThreads) threadsId.value = savedThreads;
-
-    if (paramI) igId.value = paramI;
-    else if (savedIg) igId.value = savedIg;
-});
-
-const handleSubmit = () => {
-  if (threadsId.value && igId.value) {
-    // Save handles for next time
-    localStorage.setItem('amas_anchor_threads', threadsId.value);
-    localStorage.setItem('amas_anchor_ig', igId.value);
-    
-    emit('anchor', threadsId.value, igId.value);
-  }
+const handleGoogleLogin = () => {
+    // Simulate Google Login for AIM-IAM
+    emit('anchor', 'google_user', 'google_session');
 };
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-6 font-sans select-none">
-    <div class="w-full max-w-xl flex flex-col items-center animate-fade-in">
+  <div class="login-root fixed inset-0 flex items-center justify-center p-6 bg-white dark:bg-black transition-colors duration-1000">
+    <div class="login-container w-full max-w-sm flex flex-col items-center animate-fade-in-up">
       
-      <!-- Logo Section -->
-      <div class="text-center mb-10">
-        <h1 class="text-7xl md:text-[80px] font-serif-luxury leading-none text-[#0F172A] mb-8 tracking-tight">Amas</h1>
-        <p class="text-[10px] font-black uppercase tracking-[0.4em] text-[#94A3B8] mb-6">
-          PERSONALIZE RESONANCE | CORE OS
-        </p>
-        <h2 class="text-2xl text-[#64748B] font-light tracking-tight mb-4 px-4">
-          Define your presence. Connect your signals.
-        </h2>
-        <p class="text-[14px] text-[#94A3B8] font-light">
-          We use your handles to <span class="italic font-serif-luxury text-[#1e293b] text-lg">生成</span> your <span class="font-serif-luxury font-bold text-[#0F172A] text-lg">Notebook</span>.
-        </p>
-      </div>
-
-      <!-- Input Card -->
-      <div class="w-full max-w-md bg-white rounded-[3.5rem] p-12 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.03)] border border-[#F1F5F9]">
-        <form @submit.prevent="handleSubmit" class="space-y-4">
-          <div class="space-y-3">
-            <input 
-              type="text" 
-              v-model="threadsId"
-              placeholder="Threads @" 
-              class="w-full bg-[#F8FAFC] rounded-2xl py-5 px-8 text-center text-[16px] text-[#1E293B] outline-none border border-transparent focus:bg-white focus:border-[#E2E8F0] transition-all placeholder:text-slate-300"
-              :disabled="isLoading"
-              required
-            />
-            <input 
-              type="text" 
-              v-model="igId"
-              placeholder="Instagram @" 
-              class="w-full bg-[#F8FAFC] rounded-2xl py-5 px-8 text-center text-[16px] text-[#1E293B] outline-none border border-transparent focus:bg-white focus:border-[#E2E8F0] transition-all placeholder:text-slate-300"
-              :disabled="isLoading"
-              required
-            />
+      <!-- Minimalist Logo -->
+      <div class="mb-16 text-center space-y-4">
+          <div class="relative w-16 h-16 mx-auto mb-8">
+              <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-2xl rotate-45 opacity-20 animate-pulse"></div>
+              <div class="absolute inset-2 bg-current rounded-full flex items-center justify-center">
+                  <span class="text-white dark:text-black font-black text-xs tracking-tighter">◎</span>
+              </div>
           </div>
-
-          <button 
-            type="submit" 
-            :disabled="isLoading || !threadsId || !igId"
-            class="w-full py-6 rounded-2xl bg-[#0F172A] text-white font-bold uppercase tracking-[0.3em] text-[11px] flex items-center justify-center gap-4 hover:bg-black transition-all shadow-xl active:scale-[0.98] mt-4"
-          >
-            <span v-if="isLoading" class="animate-pulse">INITIALIZING...</span>
-            <template v-else>
-              <span>INITIALIZE</span>
-              <span class="text-xl opacity-60">→</span>
-            </template>
-          </button>
-        </form>
+          <h1 class="text-4xl font-extralight tracking-tighter dark:text-white text-black">Tive◎AI</h1>
+          <p class="text-[10px] uppercase tracking-[0.6em] opacity-30">Harmonized Intelligence</p>
       </div>
 
-      <!-- Bottom Metadata -->
-      <footer class="mt-24 opacity-20">
-        <div class="flex items-center gap-2">
-          <div class="w-4 h-4 border border-black rounded-full flex items-center justify-center text-[8px] font-bold">✓</div>
-          <span class="text-[10px] font-black tracking-[0.4em] uppercase text-black">Amane Protocol</span>
+      <!-- Google Button -->
+      <button 
+        @click="handleGoogleLogin"
+        :disabled="isLoading"
+        class="group relative w-full flex items-center justify-center gap-4 py-5 px-8 bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all active:scale-95 disabled:opacity-50"
+      >
+        <div class="w-6 h-6 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
         </div>
-      </footer>
+        <span class="text-sm font-bold tracking-tight dark:text-white text-black">Sign in with Google</span>
+        
+        <!-- Loading Spinner overlay -->
+        <div v-if="isLoading" class="absolute inset-0 bg-white/80 dark:bg-black/80 flex items-center justify-center rounded-2xl">
+            <div class="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </button>
+
+      <p class="mt-8 text-[11px] opacity-20 text-center leading-loose">
+        By continuing, you agree to connect your consciousness<br/>to the Tive◎AI Amane Protocol.
+      </p>
+
+    </div>
+
+    <!-- Background Decoration -->
+    <div class="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div class="absolute top-[20%] left-[10%] w-[40vw] h-[40vw] bg-indigo-500/5 blur-[120px] rounded-full"></div>
+        <div class="absolute bottom-[20%] right-[10%] w-[40vw] h-[40vw] bg-purple-500/5 blur-[120px] rounded-full"></div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.animate-fade-in-up {
+    animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
