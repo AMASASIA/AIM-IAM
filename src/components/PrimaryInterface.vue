@@ -110,9 +110,9 @@ onUnmounted(() => {
             <div class="space-y-6">
                 <div>
                     <p class="text-[10px] uppercase tracking-widest opacity-40 mb-3">{{ i18n.t('language') }}</p>
-                    <div class="grid grid-cols-3 gap-2">
-                        <button v-for="l in ['en', 'ja', 'es', 'fr', 'de']" :key="l" @click="i18n.setLocale(l)" :class="['px-3 py-1.5 rounded-lg text-[9px] uppercase font-bold', i18n.locale === l ? 'bg-indigo-500 text-white' : 'bg-white/5']">
-                            {{ l }}
+                    <div class="grid grid-cols-4 gap-2">
+                        <button v-for="l in ['en', 'ja', 'es', 'fr', 'de', 'zh', 'ko', 'it', 'pt', 'ru', 'ar', 'hi']" :key="l" @click="i18n.setLocale(l)" :class="['px-2 py-1.5 rounded-lg text-[8px] uppercase font-bold transition-all', i18n.locale === l ? 'bg-indigo-500 text-white shadow-lg' : 'bg-white/5 hover:bg-white/10']">
+                            {{ l === 'ko' ? 'KR' : l }}
                         </button>
                     </div>
                 </div>
